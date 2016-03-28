@@ -4,6 +4,8 @@ local rl = require "readline"
 
 local pl = {}
 pl.pretty = require "pl.pretty"
+
+local dp = pl.pretty.dump
 --}}}
 
 --{{{ General Information
@@ -17,6 +19,7 @@ local M = {}
 
 -- metatable for session objects
 local meta = util.new_metatable("sessionlib")
+meta.__tostring = function (self) return "session object" end
 
 --{{{ constants, options etc.
 M.default_action_handlers = "default_action_handlers"
@@ -45,6 +48,7 @@ function M.create(...)
         unknown_command_handler = nil,
 
         internal_command_modifier = "^%+",
+        options_modifier = "-",
 
         settings = {
             enable_hooks = true,
@@ -86,6 +90,14 @@ end
 -- set the prompt of the session
 function meta.set_prompt(self)
 
+end
+
+function meta.set_internal_command_modifier(self, modifier)
+    -- check validity
+    -- the modifier may only be a single character and only some special symbol
+    if not string.match(modifier, "^[-+/!#$%^&*'\",.<>:]$") then
+        self:raise_or_return_error(string.format("illegal internal command modifier: %s", modifier))
+    end
 end
 --}}}
 --{{{ Help functions
@@ -344,6 +356,11 @@ function meta.combine_arguments(self, action, args)
     return args_combined
 end
 --}}}
+--{{{ prepend lookup data
+function meta.prepend_lookup_data(self, action, args)
+    -- FIXME: currently not used
+end
+--}}}
 --{{{ save data
 function meta.save_data(self, action, result)
     if action.save_data then
@@ -396,25 +413,43 @@ end
 --{{{ Apply options to arguments
 function meta.apply_options_to_arguments(self, action, args)
     -- TODO: this functions needs more arguments, but i'm currently not sure which exactly
+    --
     -- the following mechanisms need to be implemented:
     --      - an option generates arguments and injects them into the args table
     --      - an option causes the specified handler of an action to be called
     --      - an option calls another function before and/or after the actual action handler
-    local args_combined = self:combine_arguments(action, args)
     local options_map = self:get_options_map(action)
+    local processed_args = {}
     if options_map then
-
+        for _, arg in ipairs(args) do
+            if self:is_option(arg) then
+                -- process argument
+            else -- simply copy argument to final list
+                table.insert(processed_args, arg)
+            end
+        end
+    else -- no processing of arguments
+        processed_args = args
     end
+    local args_combined = self:combine_arguments(action, processed_args)
     if not args_combined then
         return nil
     end
     return action, args_combined
 end
+--}}}
 --{{{ get options map
 function meta.get_options_map(self, action)
-    return nil
+    return true
+    --return nil
 end
 --}}}
+--{{{ is option
+function meta.is_option(self, argument)
+    -- build matchstring
+    local matchstr = "^" .. self.options_modifier .. "%w+$"
+    return string.match(argument, matchstr)
+end
 --}}}
 --}}}
 --{{{ Main loop functions
