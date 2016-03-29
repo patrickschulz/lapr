@@ -323,10 +323,22 @@ function meta.set_debug_mode(self, mode)
     self.settings.debug_mode = mode
 end
 --}}}
+--{{{ set local debug context
+function meta.set_local_debug_context(self, mode)
+    self.settings.local_debug_context = mode
+end
+--}}}
 --{{{ debug message
-function meta.debug_message(self, mode, message)
-    if mode == self.settings.debug_mode or self.settings.debug_mode == "all" then
-        print(string.format("-> debug (%s): %s", mode, message))
+function meta.debug_message(self, mode_or_message, message)
+    if message then
+        local mode = mode_or_message
+        if mode == self.settings.debug_mode or self.settings.debug_mode == "all" then
+            print(string.format("-> debug (%s): %s", mode, message))
+        end
+    else -- only one argument. Use the local debugging context
+        local message = mode_or_message -- save message, which was given in mode argument
+        local mode = self.settings.local_debug_context
+        self:debug_message(mode, message)
     end
 end
 --}}}
@@ -430,6 +442,7 @@ end
 --}}}
 --{{{ Apply options to arguments
 function meta.apply_options_to_arguments(self, action, args)
+    self:set_local_debug_context("parsing")
     -- TODO: this functions needs more arguments, but i'm currently not sure which exactly
     --
     -- the following mechanisms need to be implemented:
@@ -439,11 +452,11 @@ function meta.apply_options_to_arguments(self, action, args)
     local options_map = self:get_options_map(action)
     local processed_args = {}
     if options_map then
-        self:debug_message("parsing", "found option map")
+        self:debug_message("found option map")
         for _, arg in ipairs(args) do
             if self:is_option(arg) then
                 -- process argument
-                print(string.format("processing argument: %s", arg))
+                self:debug_message(string.format("processing argument: %s", arg))
             else -- simply copy argument to final list
                 table.insert(processed_args, arg)
             end
