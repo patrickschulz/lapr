@@ -1,9 +1,12 @@
---package.path = package.path .. ";/home/pschulz/Workspace/lua/latex/lib/?.lua" 
-
 local project_lib = require "project"
 local session_lib = require "session"
 
 local session = session_lib.create(session_lib.default_action_handlers)
+
+--if arg[1] == "-d" or arg[1] == "--debug" then
+    print("starting debug mode")
+    session:set_debug_mode("all")
+--end
 
 session:add_action_handlers({
     { command = "create", action = project_lib.create, help_message = "create a project", save_data = "projectlib" },
@@ -18,6 +21,8 @@ session:add_action_handlers({
     { command = "compile", action = project_lib.compile, help_message = "compile the document", use_data = "projectlib" },
     { command = "cleanup", action = project_lib.clean_up, help_message = "do a clean up: (re)move all files that don't belong to the project. Use 'add_aux_file' to protect files.", use_data = "projectlib" },
 })
+
+session:add_options_map_to_handler("help", { foo = "bar" })
 
 session:loop()
 
