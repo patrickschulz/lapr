@@ -53,7 +53,8 @@ function M.create(...)
         settings = {
             enable_hooks = true,
             prompt = "%P: %l > ",
-            raise_errors = true
+            raise_errors = true,
+            debug_mode = "none"
         }
     }
 
@@ -257,6 +258,11 @@ function meta.import_from_module(self, module)
     end
 end
 --}}}
+--{{{ add options map to handler
+function meta.add_options_map_to_handler(self, command, options_map)
+    self.functiontable[command].options_map = options_map
+end
+--}}}
 --}}}
 --{{{ Hooks
 -- add a hook
@@ -309,6 +315,18 @@ function meta.check_use_data(self, action)
         end
     else
         return action
+    end
+end
+--}}}
+--{{{ set debug mode/level
+function meta.set_debug_mode(self, mode)
+    self.settings.debug_mode = mode
+end
+--}}}
+--{{{ debug message
+function meta.debug_message(self, mode, message)
+    if mode == self.settings.debug_mode or self.settings.debug_mode == "all" then
+        print(string.format("-> debug (%s): %s", mode, message))
     end
 end
 --}}}
@@ -421,9 +439,11 @@ function meta.apply_options_to_arguments(self, action, args)
     local options_map = self:get_options_map(action)
     local processed_args = {}
     if options_map then
+        self:debug_message("parsing", "found option map")
         for _, arg in ipairs(args) do
             if self:is_option(arg) then
                 -- process argument
+                print(string.format("processing argument: %s", arg))
             else -- simply copy argument to final list
                 table.insert(processed_args, arg)
             end
@@ -440,8 +460,7 @@ end
 --}}}
 --{{{ get options map
 function meta.get_options_map(self, action)
-    return true
-    --return nil
+    return action.options_map
 end
 --}}}
 --{{{ is option
