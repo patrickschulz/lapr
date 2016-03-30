@@ -4,6 +4,8 @@ local rl = require "readline"
 
 local pl = {}
 pl.pretty = require "pl.pretty"
+
+local dp = pl.pretty.dump
 --}}}
 
 --{{{ General Information
@@ -17,6 +19,7 @@ local M = {}
 
 -- metatable for session objects
 local meta = util.new_metatable("sessionlib")
+meta.__tostring = function (self) return "session object" end
 
 --{{{ constants, options etc.
 M.default_action_handlers = "default_action_handlers"
@@ -45,11 +48,13 @@ function M.create(...)
         unknown_command_handler = nil,
 
         internal_command_modifier = "^%+",
+        options_modifier = "-",
 
         settings = {
             enable_hooks = true,
             prompt = "%P: %l > ",
-            raise_errors = true
+            raise_errors = true,
+            debug_mode = "none"
         }
     }
 
@@ -86,6 +91,14 @@ end
 -- set the prompt of the session
 function meta.set_prompt(self)
 
+end
+
+function meta.set_internal_command_modifier(self, modifier)
+    -- check validity
+    -- the modifier may only be a single character and only some special symbol
+    if not string.match(modifier, "^[-+/!#$%^&*'\",.<>:]$") then
+        self:raise_or_return_error(string.format("illegal internal command modifier: %s", modifier))
+    end
 end
 --}}}
 --{{{ Help functions
@@ -245,6 +258,11 @@ function meta.import_from_module(self, module)
     end
 end
 --}}}
+--{{{ add options map to handler
+function meta.add_options_map_to_handler(self, command, options_map)
+    self.functiontable[command].options_map = options_map
+end
+--}}}
 --}}}
 --{{{ Hooks
 -- add a hook
@@ -300,6 +318,30 @@ function meta.check_use_data(self, action)
     end
 end
 --}}}
+--{{{ set debug mode/level
+function meta.set_debug_mode(self, mode)
+    self.settings.debug_mode = mode
+end
+--}}}
+--{{{ set local debug context
+function meta.set_local_debug_context(self, mode)
+    self.settings.local_debug_context = mode
+end
+--}}}
+--{{{ debug message
+function meta.debug_message(self, mode_or_message, message)
+    if message then
+        local mode = mode_or_message
+        if mode == self.settings.debug_mode or self.settings.debug_mode == "all" then
+            print(string.format("-> debug (%s): %s", mode, message))
+        end
+    else -- only one argument. Use the local debugging context
+        local message = mode_or_message -- save message, which was given in mode argument
+        local mode = self.settings.local_debug_context
+        self:debug_message(mode, message)
+    end
+end
+--}}}
 --}}}
 --{{{ Prompt functions
 -- return to prompt of the session
@@ -342,6 +384,11 @@ function meta.combine_arguments(self, action, args)
     end
 
     return args_combined
+end
+--}}}
+--{{{ prepend lookup data
+function meta.prepend_lookup_data(self, action, args)
+    -- FIXME: currently not used
 end
 --}}}
 --{{{ save data
@@ -395,26 +442,46 @@ end
 --}}}
 --{{{ Apply options to arguments
 function meta.apply_options_to_arguments(self, action, args)
+    self:set_local_debug_context("parsing")
     -- TODO: this functions needs more arguments, but i'm currently not sure which exactly
+    --
     -- the following mechanisms need to be implemented:
     --      - an option generates arguments and injects them into the args table
     --      - an option causes the specified handler of an action to be called
     --      - an option calls another function before and/or after the actual action handler
-    local args_combined = self:combine_arguments(action, args)
     local options_map = self:get_options_map(action)
+    local processed_args = {}
     if options_map then
-
+        self:debug_message("found option map")
+        for _, arg in ipairs(args) do
+            if self:is_option(arg) then
+                -- process argument
+                self:debug_message(string.format("processing argument: %s", arg))
+            else -- simply copy argument to final list
+                table.insert(processed_args, arg)
+            end
+        end
+    else -- no processing of arguments
+        processed_args = args
     end
+    local args_combined = self:combine_arguments(action, processed_args)
     if not args_combined then
         return nil
     end
     return action, args_combined
 end
+--}}}
 --{{{ get options map
 function meta.get_options_map(self, action)
-    return nil
+    return action.options_map
 end
 --}}}
+--{{{ is option
+function meta.is_option(self, argument)
+    -- build matchstring
+    local matchstr = "^" .. self.options_modifier .. "%w+$"
+    return string.match(argument, matchstr)
+end
 --}}}
 --}}}
 --{{{ Main loop functions
