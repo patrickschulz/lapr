@@ -131,11 +131,13 @@ end
 --}}}
 --}}}
 --{{{ Saving/Loading Functions
+--{{{ save
 function meta.save(self)
     local rep = pl.pretty.write(self)
     pl.file.write(".project", rep)
 end
-
+--}}}
+--{{{ load
 function meta.load()
     local project_table = pl.file.read(".project")
     if not project_table then
@@ -146,10 +148,12 @@ function meta.load()
     setmetatable(self, meta)
     return self
 end
-
+--}}}
+--{{{ adopt
 function meta.adopt(main_file)
     local main_file = main_file or "main"
 end
+--}}}
 --}}}
 --{{{ File Functions
 function meta.add_file(self, filename)
@@ -176,9 +180,11 @@ function meta.add_aux_file(self, filename)
 end
 --}}}
 --{{{ Editing Functions
+--{{{ edit preamble
 function meta.edit_preamble(self)
     self:edit_file(self.file_list.preamble_file)
 end
+--}}}
 
 function meta.edit_file(self, filename)
     if not (filename or self.last_active_file) then
@@ -218,21 +224,26 @@ function meta.compile(self, mode)
 end
 --}}}
 --{{{ Access Functions
+--{{{ ignore hidden files
 function meta.ignore_hidden_files(self, bool)
     self.settings.ignore_hidden = bool
 end
-
+--}}}
+--{{{ enable debuggin messages
 function meta.enable_debuggin_messages(self, bool)
     self.settings.debug = bool
 end
-
+--}}}
+--{{{ setting
 function meta.setting(self, options)
     if type(options) ~= "table" then
         print("project: setting options is not a table")
     end
 end
 --}}}
+--}}}
 --{{{ Content Generation Functions
+--{{{ get main content
 function meta.get_main_content(self, options)
     return string.format([[
 \documentclass{scrartcl}
@@ -245,6 +256,7 @@ function meta.get_main_content(self, options)
 ]],
 self.file_list.preamble_file)
 end
+--}}}
 
 function meta.get_master_content(self)
     local t = {}
@@ -269,12 +281,15 @@ function meta.get_preamble_content(self)
 end
 --}}}
 --{{{ Content Write Functions
+--{{{ write master file
 function meta.write_master_file(self)
     local master_content = self:get_master_content()
     util.write_tex_file("project_master", master_content, self.directories.file_dir)
 end
 --}}}
+--}}}
 --{{{ Cleanup Functions
+--{{{ clean up
 function meta.clean_up(self)
     -- iterate over directory and move all files NOT in the file list (or the auxiliary file list) to a hidden (or specified) directory
     local files = pl.dir.getfiles(".")
@@ -296,34 +311,41 @@ function meta.clean_up(self)
         end
     end
 end
-
+--}}}
+--{{{ purge
 function meta.purge(self) -- use with care
     -- this function removes all files created by the project
     -- this includes both files created by this tool and files created by LaTeX
     --
     -- current simple implementation: delete all files which are not in the auxiliary file list
 end
-
+--}}}
+--{{{ is allowed file
 function meta.is_allowed_file(self, filename)
     return self:is_managed_file(filename) 
         or self:is_auxiliary_file(filename)
 end
-
+--}}}
+--{{{ is managed file
 function meta.is_managed_file(self, filename)
     return filename == self.file_list.main_file .. ".tex"  -- main file
         or filename == self.file_list.main_file .. ".pdf"  -- output document
         or pl.tablex.find(self.file_list, filename)        -- content file
 end
-
+--}}}
+--{{{ is auxiliary file
 function meta.is_auxiliary_file(self, filename)
     return pl.tablex.find(self.aux_files, filename)
 end
 --}}}
+--}}}
 --{{{ Viewing Functions
+--{{{ view
 function meta.view(self)
     local command = string.format("%s %s", self.viewer, self.file_list.main_file .. ".pdf")
     os.execute(command)
 end
+--}}}
 --}}}
 
 setmetatable(M, meta)
