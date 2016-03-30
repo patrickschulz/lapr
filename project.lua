@@ -57,7 +57,7 @@ function M.create(name, file_list)
 
         packages = {
             "tikz",
-            "kantlispum"
+            "kantlipsum"
         },
 
         -- environment
@@ -93,6 +93,19 @@ function M.create(name, file_list)
     return self
 end
 --}}}
+--}}}
+--{{{ settings
+function meta.set_editor(self, editor)
+
+end
+
+function meta.set_latex_engine(self, engine)
+
+end
+
+function meta.set_viewer(self, viewer)
+
+end
 --}}}
 --{{{ Utility Functions
 --{{{ get full file path
@@ -259,7 +272,7 @@ function meta.get_main_content(self, options)
 self.file_list.preamble_file)
 end
 --}}}
-
+--{{{ get_master_content
 function meta.get_master_content(self)
     local t = {}
     for i = 1, #self.file_list do
@@ -267,7 +280,8 @@ function meta.get_master_content(self)
     end
     return table.concat(t, "\n")
 end
-
+--}}}
+--{{{ get_preamble_content
 function meta.get_preamble_content(self)
     local content = {
         "\\usepackage{fontspec}",
@@ -281,6 +295,7 @@ function meta.get_preamble_content(self)
     end
     return table.concat(content, "\n")
 end
+--}}}
 --}}}
 --{{{ Content Write Functions
 --{{{ write master file
