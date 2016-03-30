@@ -19,7 +19,7 @@ local M = {}
 
 -- metatable for session objects
 local meta = util.new_metatable("sessionlib")
-meta.__tostring = function (self) return "session object" end
+--meta.__tostring = function (self) return "session object" end
 
 --{{{ constants, options etc.
 M.default_action_handlers = "default_action_handlers"
@@ -265,7 +265,7 @@ end
 --}}}
 --}}}
 --{{{ Hooks
--- add a hook
+--{{{ add hook
 function meta.add_hook(self, hook, event, command)
     -- TODO: check validity of event
     if not hook then
@@ -278,8 +278,8 @@ function meta.add_hook(self, hook, event, command)
         self.hooks[event] = hook
     end
 end
-
--- get a hook
+--}}}
+--{{{ get hook
 function meta.get_hook(self, event, command)
     if command then -- get hook tied to action
         return self.hooks[event .. ":" .. command]
@@ -288,7 +288,9 @@ function meta.get_hook(self, event, command)
     end
 end
 --}}}
+--}}}
 --{{{ Error handling
+--{{{ raise or return error
 function meta.raise_or_return_error(self, msg)
     if self.settings.raise_errors then
         error(msg)
@@ -296,6 +298,7 @@ function meta.raise_or_return_error(self, msg)
         return nil, msg
     end
 end
+--}}}
 --}}}
 --{{{ Utility functions
 --{{{ generate unique module name

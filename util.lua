@@ -9,6 +9,7 @@ function M.new_metatable(mode)
     local meta = {}
     meta.__index = meta
     meta.__metatable = mode
+    meta.__tostring = function(self) return string.sub(mode, "lib", " ") .. "object" end
     return meta
 end
 --}}}
