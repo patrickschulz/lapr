@@ -4,13 +4,15 @@ local pl = {}
 pl.file = require "pl.file"
 pl.path = require "pl.path"
 
+--{{{ new metatable
 function M.new_metatable(mode)
     local meta = {}
     meta.__index = meta
     meta.__metatable = mode
     return meta
 end
-
+--}}}
+--{{{ debug print
 function M.debug_print(object, indent)
     local indent = indent or 0
     if type(object) == "table" then
@@ -30,7 +32,8 @@ function M.debug_print(object, indent)
         io.write(string.format("%s%s,\n", string.rep(" ", 4 * (indent + 1)), tostring(object)))
     end
 end
-
+--}}}
+--{{{ write file with extension
 function M.write_file_with_extension(filename, extension, content, subdir)
     -- check the extension for a . (dot)
     -- with this, the user of this function can use both (e.g.) ".tex" and "tex"
@@ -44,17 +47,23 @@ function M.write_file_with_extension(filename, extension, content, subdir)
     end
     pl.file.write(filename_ext, content)
 end
-
+--}}}
+--{{{ write tex file
 function M.write_tex_file(filename, content, subdir)
     M.write_file_with_extension(filename, "tex", content, subdir)
 end
-
+--}}}
+--{{{ write sty file
 function M.write_sty_file(filename, content, subdir)
     M.write_file_with_extension(filename, "sty", content, subdir)
 end
-
+--}}}
+--{{{ is hidden
 function M.is_hidden(filename)
     return pl.path.basename(filename):sub(1, 1) == "."
 end
+--}}}
 
 return M
+
+-- vim: foldmethod=marker
