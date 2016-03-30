@@ -1,5 +1,4 @@
-local M = {}
-
+--{{{ Module loading
 local pl  = {}
 pl.file   = require "pl.file"
 pl.path   = require "pl.path"
@@ -11,14 +10,15 @@ pl.utils  = require "pl.utils"
 local latex = require "latex"
 
 local util = require "util"
+--}}}
 
-local meta = {}
-meta.__index = meta
+local M = {}
 
-----------------------------------
--- Object Creation Functions --
-----------------------------------
--- create a project
+-- metatable for project objects
+local meta = util.new_metatable("projectlib")
+
+--{{{ Object Creation Functions
+--{{{ create a project
 --
 -- this function creates all needed files and directories for a project
 -- and stores all information in the project file
@@ -55,6 +55,11 @@ function M.create(name, file_list)
 
         project_name = name,
 
+        packages = {
+            "tikz",
+            "kantlispum"
+        },
+
         -- environment
         engine = "lualatex --interaction=nonstopmode",
         editor = "vim",
@@ -87,10 +92,10 @@ function M.create(name, file_list)
 
     return self
 end
-
---------------------
--- Utility Functions --
---------------------
+--}}}
+--}}}
+--{{{ Utility Functions
+--{{{ get full file path
 function meta.get_full_file_path(self, filename)
     -- search order:
     -- 1. Main file
@@ -107,7 +112,8 @@ function meta.get_full_file_path(self, filename)
         end
     end
 end
-
+--}}}
+--{{{ info
 function meta.info(self, mode)
     local indent = "  "
     print("Project Information:")
@@ -122,10 +128,9 @@ function meta.info(self, mode)
     print(string.format("engine: %s", self.engine))
     print(string.format("viewer: %s", self.viewer))
 end
-
-------------------------------
--- Saving/Loading Functions --
-------------------------------
+--}}}
+--}}}
+--{{{ Saving/Loading Functions
 function meta.save(self)
     local rep = pl.pretty.write(self)
     pl.file.write(".project", rep)
@@ -145,10 +150,8 @@ end
 function meta.adopt(main_file)
     local main_file = main_file or "main"
 end
-
---------------------
--- File Functions --
---------------------
+--}}}
+--{{{ File Functions
 function meta.add_file(self, filename)
     if type(filename) == "table" then
         for _, fn in ipairs(filename) do
@@ -171,10 +174,8 @@ function meta.add_aux_file(self, filename)
         table.insert(self.aux_files, filename)
     end
 end
-
------------------------
--- Editing Functions --
------------------------
+--}}}
+--{{{ Editing Functions
 function meta.edit_preamble(self)
     self:edit_file(self.file_list.preamble_file)
 end
@@ -197,9 +198,11 @@ function meta.edit_file(self, filename)
     os.execute(command)
 end
 
------------------------------------
--- Document Generation Functions --
------------------------------------
+function meta.add_package(self, package)
+
+end
+--}}}
+--{{{ Document Generation Functions
 function meta.compile(self, mode)
     if mode == "document" or not mode then
         local command = string.format("%s %s", self.engine, self.file_list.main_file)
@@ -213,10 +216,8 @@ function meta.compile(self, mode)
 
     end
 end
-
-----------------------
--- Access Functions --
-----------------------
+--}}}
+--{{{ Access Functions
 function meta.ignore_hidden_files(self, bool)
     self.settings.ignore_hidden = bool
 end
@@ -230,10 +231,8 @@ function meta.setting(self, options)
         print("project: setting options is not a table")
     end
 end
-
-----------------------------------
--- Content Generation Functions --
-----------------------------------
+--}}}
+--{{{ Content Generation Functions
 function meta.get_main_content(self, options)
     return string.format([[
 \documentclass{scrartcl}
@@ -256,26 +255,26 @@ function meta.get_master_content(self)
 end
 
 function meta.get_preamble_content(self)
-    return [[
-\usepackage{fontspec}
-\setmainfont{Linux Libertine O}
-\usepackage{polyglossia}
-\setdefaultlanguage{german}
-]]
+    local content = {
+        "\\usepackage{fontspec}"
+        "\\setmainfont{Linux Libertine O}"
+        "\\usepackage{polyglossia}"
+        "\\setdefaultlanguage{german}"
+    }
+    for _, package in ipairs(self.packages) do
+        local packagestr = string.format("\\usepackage{%s}", package)
+        table.insert(content, packagestr)
+    end
+    return table.concat(content, "\n")
 end
-
------------------------------
--- Content Write Functions --
------------------------------
+--}}}
+--{{{ Content Write Functions
 function meta.write_master_file(self)
     local master_content = self:get_master_content()
     util.write_tex_file("project_master", master_content, self.directories.file_dir)
 end
-
-
------------------------
--- Cleanup Functions --
------------------------
+--}}}
+--{{{ Cleanup Functions
 function meta.clean_up(self)
     -- iterate over directory and move all files NOT in the file list (or the auxiliary file list) to a hidden (or specified) directory
     local files = pl.dir.getfiles(".")
@@ -319,15 +318,16 @@ end
 function meta.is_auxiliary_file(self, filename)
     return pl.tablex.find(self.aux_files, filename)
 end
-
------------------------
--- Viewing Functions --
------------------------
+--}}}
+--{{{ Viewing Functions
 function meta.view(self)
     local command = string.format("%s %s", self.viewer, self.file_list.main_file .. ".pdf")
     os.execute(command)
 end
+--}}}
 
 setmetatable(M, meta)
 
 return M
+
+-- vim: foldmethod=marker
