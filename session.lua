@@ -84,15 +84,17 @@ function M.create(...)
 end
 --}}}
 --{{{ Settings
+--{{{ set name
 function meta.set_name(self, name)
     self.name = name
 end
-
--- set the prompt of the session
+--}}}
+--{{{ set prompt
 function meta.set_prompt(self)
 
 end
-
+--}}}
+--{{{ set internal command modifier
 function meta.set_internal_command_modifier(self, modifier)
     -- check validity
     -- the modifier may only be a single character and only some special symbol
@@ -100,6 +102,7 @@ function meta.set_internal_command_modifier(self, modifier)
         self:raise_or_return_error(string.format("illegal internal command modifier: %s", modifier))
     end
 end
+--}}}
 --}}}
 --{{{ Help functions
 -- displays all valid commands
