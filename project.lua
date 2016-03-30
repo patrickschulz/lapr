@@ -185,7 +185,7 @@ function meta.edit_preamble(self)
     self:edit_file(self.file_list.preamble_file)
 end
 --}}}
-
+--{{{ edit file
 function meta.edit_file(self, filename)
     if not (filename or self.last_active_file) then
         print("specify file to edit")
@@ -203,10 +203,12 @@ function meta.edit_file(self, filename)
     local command = string.format("%s %s", self.editor, filename)
     os.execute(command)
 end
-
+--}}}
+--{{{ add package
 function meta.add_package(self, package)
-
+    table.insert(self.packages, package)
 end
+--}}}
 --}}}
 --{{{ Document Generation Functions
 function meta.compile(self, mode)
@@ -268,10 +270,10 @@ end
 
 function meta.get_preamble_content(self)
     local content = {
-        "\\usepackage{fontspec}"
-        "\\setmainfont{Linux Libertine O}"
-        "\\usepackage{polyglossia}"
-        "\\setdefaultlanguage{german}"
+        "\\usepackage{fontspec}",
+        "\\setmainfont{Linux Libertine O}",
+        "\\usepackage{polyglossia}",
+        "\\setdefaultlanguage{german}",
     }
     for _, package in ipairs(self.packages) do
         local packagestr = string.format("\\usepackage{%s}", package)
