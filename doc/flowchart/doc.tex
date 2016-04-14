@@ -1,0 +1,32 @@
+\documentclass[parskip=half]{scrartcl}
+
+\usepackage{polyglossia}
+\setmainlanguage{german}
+
+\usepackage{fontspec}
+\setmainfont{Linux Libertine O}
+
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+
+\tikzset{
+    state/.style={draw, rectangle, thick, rounded corners, align=center, text width=4cm}
+}
+
+\begin{document}
+\section{Collection of ideas}
+  \subsection{Automatic error correction}
+  I have some mistakes i do alot, like forgetting to load a package or a tikz library or something. This is nearly all the time easy to fix and, more
+  important, easy to detect automatically. I see two ways for automating this task, both should be used together: 1. check the difference in edits BEFORE
+  compiling and add packages and libraries for inserted code. 2. parse error messages, insert missing code and recompile without showing the error to the
+  user. There should be a message like "added package 'foo' because of line 13: '...'".
+\section{Program flowchart}
+  \begin{center}
+    \begin{tikzpicture}
+      \node[state] (init) { Initialize program };
+      \node[state, below=of init] (loop) { Loop };
+    \end{tikzpicture}
+  \end{center}
+\end{document}
+
+% vim: ft=tex tw=0
