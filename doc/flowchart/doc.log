@@ -1,4 +1,4 @@
-This is LuaTeX, Version beta-0.80.0 (TeX Live 2015/Arch Linux) (rev 5238)  (format=lualatex 2015.11.15)  15 APR 2016 01:11
+This is LuaTeX, Version beta-0.80.0 (TeX Live 2015/Arch Linux) (rev 5238)  (format=lualatex 2015.11.15)  15 APR 2016 12:00
  restricted \write18 enabled.
 **doc.tex
 (./doc.tex
@@ -265,7 +265,7 @@ Lua-only attribute luaotfload@cursbase = 6
 Lua-only attribute luaotfload@curscurs = 7
 Lua-only attribute luaotfload@cursdone = 8
 Lua-only attribute luaotfload@state = 9
-luaotfload | main : fontloader loaded in 0.030 seconds
+luaotfload | main : fontloader loaded in 0.026 seconds
 Inserting `luaotfload.node_processor' at position 1 in `pre_linebreak_filter'.
 Inserting `luaotfload.node_processor' at position 1 in `hpack_filter'.
 Inserting `luaotfload.find_vf_file' at position 1 in `find_vf_file'.
@@ -995,26 +995,34 @@ LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
 
 ABD: EveryShipout initializing macros(compiling luc: /var/lib/texmf/luatex-cache
 /generic/fonts/otf/lmsans10-bold.luc)(load luc: /home/pschulz/.texlive/texmf-var
-/luatex-cache/generic/fonts/otf/lmsans10-bold.luc) [1
+/luatex-cache/generic/fonts/otf/lmsans10-bold.luc)
+LaTeX Font Info:    Try loading font information for EU2+lmtt on input line 29.
 
-{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] (./doc.aux))
+(/usr/share/texmf-dist/tex/latex/euenc/eu2lmtt.fd
+File: eu2lmtt.fd 2009/10/30 v1.6 Font defs for Latin Modern
+)(compiling luc: /var/lib/texmf/luatex-cache/generic/fonts/otf/lmmono10-regular.
+luc)(load luc: /home/pschulz/.texlive/texmf-var/luatex-cache/generic/fonts/otf/l
+mmono10-regular.luc) [1
+
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2] [3] (./doc.aux))
 
 Here is how much of LuaTeX's memory you used:
- 27742 strings out of 494897
+ 27787 strings out of 494897
  100000,662416 words of node,token memory allocated
- 322 words of node memory still in use:
+ 344 words of node memory still in use:
    3 hlist, 1 vlist, 1 rule, 2 glue, 1 kern, 4 attribute, 47 glue_spec, 4 attrib
 ute_list, 1 write nodes
-   avail lists: 1:1,2:2115,3:84,4:260,5:42,6:628,7:9,9:48,10:78
- 30666 multiletter control sequences out of 65536+600000
- 31 fonts using 4061523 bytes
+   avail lists: 1:1,2:5964,3:92,4:553,5:141,6:1948,7:16,9:60,10:208
+ 30703 multiletter control sequences out of 65536+600000
+ 32 fonts using 4181535 bytes
  69i,7n,62p,1228b,636s stack positions out of 5000i,500n,10000p,200000b,100000s
-</usr/share/texmf-dist/fonts/opentype/public/libertine/LinLibertine_R.otf></usr/
-share/texmf-dist/fonts/opentype/public/lm/lmsans10-bold.otf>
-Output written on doc.pdf (1 page, 14276 bytes).
+</usr/share/texmf-dist/fonts/opentype/public/lm/lmmono10-regular.otf></usr/share
+/texmf-dist/fonts/opentype/public/libertine/LinLibertine_R.otf></usr/share/texmf
+-dist/fonts/opentype/public/lm/lmsans10-bold.otf>
+Output written on doc.pdf (3 pages, 26320 bytes).
 
-PDF statistics: 25 PDF objects out of 1000 (max. 8388607)
- 15 compressed objects within 1 object stream
+PDF statistics: 38 PDF objects out of 1000 (max. 8388607)
+ 23 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 131072)
  16 words of extra memory for PDF output out of 10000 (max. 10000000)
 
