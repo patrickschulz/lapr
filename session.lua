@@ -4,6 +4,7 @@ local rl = require "readline"
 
 local pl = {}
 pl.pretty = require "pl.pretty"
+pl.utils = require "pl.utils"
 
 local dp = pl.pretty.dump
 --}}}
@@ -335,16 +336,19 @@ function meta.set_local_debug_context(self, mode)
 end
 --}}}
 --{{{ debug message
-function meta.debug_message(self, mode_or_message, message)
-    if message then
+function meta.debug_message(self, mode_or_message, message, level)
+    if pl.utils.is_type(message, "string") then
         local mode = mode_or_message
+        local level = level or 0
+        local indent = string.rep(" ", level)
         if mode == self.settings.debug_mode or self.settings.debug_mode == "all" then
-            print(string.format("-> debug (%s): %s", mode, message))
+            print(string.format("%s-> debug (%s): %s", indent, mode, message))
         end
     else -- only one argument. Use the local debugging context
+        local level = message or 0 -- if a debugging context is used, the level will be given in the message argument
         local message = mode_or_message -- save message, which was given in mode argument
         local mode = self.settings.local_debug_context
-        self:debug_message(mode, message)
+        self:debug_message(mode, message, level)
     end
 end
 --}}}
@@ -461,13 +465,27 @@ function meta.apply_options_to_arguments(self, action, args)
         self:debug_message("found option map")
         for _, arg in ipairs(args) do
             if self:is_option(arg) then
-                -- process argument
-                self:debug_message(string.format("processing argument: %s", arg))
+                local option = self:strip_option(arg)
+                -- process option
+                self:debug_message(string.format("processing option: %s", option), 1)
+                if options_map[option] then
+                    self:debug_message(string.format("option map contains entry for option '%s'", option), 2)
+                    if pl.utils.is_type(options_map[option], "string") then 
+                        table.insert(processed_args, options_map[option])
+                    elseif pl.utils.is_type(options_map[option], "number") then 
+                    elseif pl.utils.is_type(options_map[option], "function") then 
+                    elseif pl.utils.is_type(options_map[option], "table") then 
+                    else 
+                    end
+                else
+                    self:debug_message(string.format("option map contains no entry for option '%s'", option), 2)
+                end
             else -- simply copy argument to final list
                 table.insert(processed_args, arg)
             end
         end
     else -- no processing of arguments
+        self:debug_message("no option map found")
         processed_args = args
     end
     local args_combined = self:combine_arguments(action, processed_args)
@@ -487,6 +505,14 @@ function meta.is_option(self, argument)
     -- build matchstring
     local matchstr = "^" .. self.options_modifier .. "%w+$"
     return string.match(argument, matchstr)
+end
+--}}}
+--{{{ strip option
+function meta.strip_option(self, argument)
+    -- build matchstring
+    local matchstr = "[^" .. self.options_modifier .. "]"
+    local _, _, option = string.find(argument, "-(.+)")
+    return option
 end
 --}}}
 --}}}
