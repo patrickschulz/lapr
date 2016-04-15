@@ -7,10 +7,12 @@
 \setmainfont{Linux Libertine O}
 
 \usepackage{tikz}
-\usetikzlibrary{positioning}
+\usetikzlibrary{positioning, arrows, calc, shapes}
 
 \tikzset{
-    state/.style={draw, rectangle, thick, rounded corners, align=center, text width=4cm}
+    state/.style={draw, rectangle, thick, rounded corners, align=center, text width=4cm},
+    cstate/.style={draw, rectangle split, rectangle split parts=2, thick, rounded corners, align=center, text width=4cm},
+    tip/.style={->, >=stealth', thick}
 }
 
 \begin{document}
@@ -87,8 +89,24 @@ These are ideas to improve the program and add features. They are not sorted, bu
 \section{Program flowchart}
   \begin{center}
     \begin{tikzpicture}
-      \node[state] (init) { Initialize program };
+      \node[cstate] (init) { Initialize program };
       \node[state, below=of init] (loop) { Loop };
+      \node[state, below=of loop] (line) { Read next line };
+      \node[state, below=of line] (parse) { Parse command line };
+      \node[state, below=of parse] (checkget) { Check command and get action handler };
+      \node[state, below=of checkget] (apply) { Apply options };
+      \node[state, below=of apply] (call) { Call handler };
+      \node[state, below=of call] (save) { Save results };
+
+      % connections
+      \draw[tip] (init) -- (loop);
+      \draw[tip] (loop) -- (line);
+      \draw[tip] (line) -- (parse);
+      \draw[tip] (parse) -- (checkget);
+      \draw[tip] (checkget) -- (apply);
+      \draw[tip] (apply) -- (call);
+      \draw[tip] (call) -- (save);
+      \draw[tip] (save.south) |- ($(save.south west) - (4, 1)$) |- (loop.west);
     \end{tikzpicture}
   \end{center}
 \end{document}
