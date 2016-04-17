@@ -96,15 +96,24 @@ end
 --}}}
 --{{{ settings
 function meta.set_editor(self, editor)
-
+    self.editor = editor
 end
 
 function meta.set_latex_engine(self, engine)
-
+    self.engine = engine
 end
 
 function meta.set_viewer(self, viewer)
-
+    self.viewer = viewer
+end
+function meta.reset(self, mode)
+    if mode == "editor" then
+        self.editor = "vim"
+    elseif mode == "engine" then
+        self.engine = "lualatex --interaction=nonstopmode"
+    elseif mode == "viewer" then
+        self.viewer = "zathura --fork"
+    end
 end
 --}}}
 --{{{ Utility Functions
