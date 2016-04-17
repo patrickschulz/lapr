@@ -46,6 +46,7 @@ function M.create(...)
             collect_arguments = {},
             options_map = {}
         },
+        aliases = { },
         data = { },
         hooks = { },
 
@@ -75,6 +76,15 @@ function M.create(...)
             self.functiontable.use_data["quit"] = "quit"
             self.data["quit"] = self
 
+            self.functiontable.functions["alias"] = 
+                function(self) 
+                    for alias in pairs(self.aliases) do
+                        print(alias)
+                    end
+                end
+            self.functiontable.help_messages["alias"] = "list all aliases"
+            self.functiontable.use_data["alias"] = "alias"
+            self.data["alias"] = self
         end
     end
 
@@ -174,7 +184,11 @@ end
 function meta.get_function(self, command, args)
     local func = self.functiontable.functions[command]
     if not func then
-        return nil, string.format("command '%s' unknown", command)
+        if self.aliases[command] then
+            return self:get_function(self.aliases[command], args)
+        else
+            return nil, string.format("command '%s' unknown", command)
+        end
     else
         if pl.utils.is_type(func, "function") then
             return func
@@ -617,6 +631,15 @@ function meta.strip_option(self, argument)
     return option
 end
 --}}}
+--{{{ resolve alias
+function meta.resolve_alias(self, command, args)
+    if self.aliases[command] then
+        return self.aliases[command], args
+    else
+        return command, args
+    end
+end
+--}}}
 --}}}
 --{{{ Main loop functions
 function meta.loop(self)
@@ -631,6 +654,7 @@ function meta.loop(self)
 
         -- parse the command line
         local command, args = self:parse_line(line)
+        command, args = self:resolve_alias(command, args)
 
         if self:check_command(command, args) then -- checks for existance of the command and validity of use_data
             -- execute the 'before' hook, then the action handler, then the 'after' hook (if they exist)
