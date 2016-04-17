@@ -54,6 +54,22 @@ session:add_action_handler({
     help_message = "view the document",
     use_data = "project_lib"
 })
+session:add_action_handler({
+    command = "set",
+    action = {
+        editor = project_lib.set_editor,
+        engine = project_lib.set_latex_engine,
+        viewer = project_lib.set_viewer
+    },
+    help_message = "latex settings",
+    use_data = "project_lib"
+})
+session:add_action_handler({
+    command = "reset",
+    action = project_lib.reset,
+    help_message = "reset settings",
+    use_data = "project_lib"
+})
 
 session:loop()
 
