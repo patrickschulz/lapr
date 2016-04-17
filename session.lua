@@ -51,7 +51,7 @@ function M.create(...)
 
         last_command = nil,
 
-        internal_command_modifier = "^%+",
+        internal_command_modifier = "+",
         options_modifier = "-",
 
         settings = {
@@ -68,15 +68,19 @@ function M.create(...)
             self.functiontable.functions["help"] = meta.help
             self.functiontable.help_messages["help"] = "display a help message"
             self.functiontable.use_data["help"] = "help"
+            self.data["help"] = self
 
             self.functiontable.functions["quit"] = function(self) self.open = false end
             self.functiontable.help_messages["quit"] = "quit the session"
             self.functiontable.use_data["quit"] = "quit"
-
             self.data["quit"] = self
-            self.data["help"] = self
+
         end
     end
+
+    self.functiontable.functions["+set"] = meta.set
+    self.functiontable.use_data["+set"] = "+set"
+    self.data["+set"] = self
 
     setmetatable(self, meta)
 
@@ -87,6 +91,9 @@ end
 --{{{ generic set function
 function meta.set(self, mode, ...)
     local args = { ... }
+    if mode == "line" then
+        self.line_number = 1
+    end
 end
 --}}}
 --{{{ set name
@@ -104,17 +111,9 @@ function meta.set_internal_command_modifier(self, modifier)
     -- check validity
     -- the modifier may only be a single character and only some special symbol
     if not string.match(modifier, "^[-+/!#$%^&*'\",.<>:]$") then
-        self:raise_or_return_error(string.format("illegal internal command modifier: %s", modifier))
+        return self:raise_or_return_error(string.format("illegal internal command modifier: %s", modifier))
     end
-end
---}}}
---{{{ set internal command modifier
-function meta.set_internal_command_modifier(self, modifier)
-    -- check validity
-    -- the modifier may only be a single character and only some special symbol
-    if not string.match(modifier, "^[-+/!#$%^&*'\",.<>:]$") then
-        self:raise_or_return_error(string.format("illegal internal command modifier: %s", modifier))
-    end
+    self.internal_command_modifier = modifier
 end
 --}}}
 --}}}
@@ -122,6 +121,24 @@ end
 -- displays all valid commands
 -- or the help message of all specified commands
 function meta.help(self, ...)
+    if ... == "-internal" then
+        -- build table with all command names and sort them
+        local commandnames = {}
+        for command in pairs(self.functiontable.functions) do
+            if self:is_internal_command(command) then
+                table.insert(commandnames, command)
+            end
+        end
+        table.sort(commandnames)
+
+        -- print the list
+        print("list of internal commands:\n")
+        for _, command in ipairs(commandnames) do
+            print(command)
+        end
+        print()
+        return
+    end
     if ... then
         -- iterate over all given commands, this works well also for only one command
         for _, command in ipairs({ ... }) do
@@ -137,7 +154,7 @@ function meta.help(self, ...)
         -- build table with all command names and sort them
         local commandnames = {}
         for command in pairs(self.functiontable.functions) do
-            if not string.match(command, "__[^_]+__") then
+            if not (self:is_internal_command(command) or self:is_hidden_command(command)) then
                 table.insert(commandnames, command)
             end
         end
@@ -405,6 +422,16 @@ function meta.debug_message(self, mode_or_message, message, level)
     end
 end
 --}}}
+--{{{ is hidden command
+function meta.is_hidden_command(self, command)
+    return string.match(command, "__[^_]+__")
+end
+--}}}
+--{{{ is internal command
+function meta.is_internal_command(self, command)
+    return string.match(command, "^%" .. self.internal_command_modifier)
+end
+--}}}
 --}}}
 --{{{ Prompt functions
 -- return to prompt of the session
@@ -511,11 +538,6 @@ function meta.parse_line(self, line)
     -- first, check for empty line
     if string.match(line, "^%s*$") then
         return "__empty__", {}
-    end
-    -- check if the command is an internal command
-    -- these commands are specified by using the internal command modifier (can be modified)
-    if string.match(line, self.internal_command_modifier) then
-        print("internal command")
     end
 
     local first, last, command = string.find(line, "^(%S+)")
