@@ -188,6 +188,7 @@ function meta.add_file(self, filename)
         util.write_tex_file(filename, content, self.directories.file_dir)
         table.insert(self.file_list, filename)
         self:write_master_file()
+        self.last_active_file = filename
     end
 end
 
@@ -343,7 +344,7 @@ function meta.purge(self) -- use with care
     -- this function removes all files created by the project
     -- this includes both files created by this tool and files created by LaTeX
     --
-    -- current simple implementation: delete all files which are not in the auxiliary file list
+    -- current simple "implementation": delete all files which are not in the auxiliary file list
 end
 --}}}
 --{{{ is allowed file

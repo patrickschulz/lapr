@@ -1,12 +1,21 @@
+#! /usr/bin/env lua
+local lapp = require "pl.lapp"
+
 local project_lib = require "project"
 local session_lib = require "session"
 
 local session = session_lib.create(session_lib.default_action_handlers)
 
-if arg[1] == "-d" or arg[1] == "--debug" then
-    print("starting debug mode")
-    session:set_debug_mode("all")
-end
+local args = lapp[[
+lapr - a commandline IDE for LaTeX documents. 
+Usage: lapr [options]
+
+Supported options:
+    -d,--debug                          turn on debugging features
+       --tour                           take an introduction tour
+    -n,--noload                         do not load an existing project at startup
+    -f,--file (default ".project")      filename of project file
+]]
 
 session:add_action_handler({
     command = "add",
@@ -70,7 +79,23 @@ session:add_action_handler({
     help_message = "reset settings",
     use_data = "project_lib"
 })
+session:add_action_handler({
+    command = "save",
+    action = project_lib.save,
+    help_message = "save project",
+    use_data = "project_lib"
+})
+session:add_action_handler({
+    command = "load",
+    action = project_lib.load,
+    help_message = "load project",
+    save_data = "project_lib"
+})
+
+if not args.noload then
+    session:execute_command("load")
+end
 
 session:loop()
 
--- vim: nowrap
+-- vim: nowrap ft=lua

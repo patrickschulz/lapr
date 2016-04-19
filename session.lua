@@ -76,12 +76,7 @@ function M.create(...)
             self.functiontable.use_data["quit"] = "quit"
             self.data["quit"] = self
 
-            self.functiontable.functions["alias"] = 
-                function(self) 
-                    for alias in pairs(self.aliases) do
-                        print(alias)
-                    end
-                end
+            self.functiontable.functions["alias"] = meta.alias
             self.functiontable.help_messages["alias"] = "list all aliases"
             self.functiontable.use_data["alias"] = "alias"
             self.data["alias"] = self
@@ -127,7 +122,8 @@ function meta.set_internal_command_modifier(self, modifier)
 end
 --}}}
 --}}}
---{{{ Help functions
+--{{{ Internal command functions
+--{{{ Help
 -- displays all valid commands
 -- or the help message of all specified commands
 function meta.help(self, ...)
@@ -179,6 +175,31 @@ function meta.help(self, ...)
     end
 end
 --}}}
+--{{{ Alias
+function meta.alias(self, alias_command, reference_command) 
+    if alias_command then
+        if reference_command then -- set alias
+            self.aliases[alias_command] = reference_command
+        else -- lookup alias for given command
+            local command = self:get_alias(alias_command)
+            if command then
+                print(string.format("%s := %s", alias_command, command))
+            else
+                print(string.format("alias '%s' not defined", alias_command))
+            end
+        end
+    else
+        if pl.tablex.size(self.aliases) == 0 then
+            print("no aliases")
+        else
+            for alias in pairs(self.aliases) do
+                print(alias)
+            end
+        end
+    end
+end
+--}}}}
+--}}}
 --{{{ Getter for functiontable
 --{{{ get function
 function meta.get_function(self, command, args)
@@ -212,15 +233,21 @@ function meta.get_function(self, command, args)
     end
 end
 --}}}
+--{{{ get use_data
 function meta.get_use_data(self, command)
     return self.functiontable.use_data[command]
 end
+--}}}
+--{{{ get save_data
 function meta.get_save_data(self, command)
     return self.functiontable.save_data[command]
 end
+--}}}
+--{{{ get collect_arguments
 function meta.get_collect_arguments(self, command)
     return self.functiontable.collect_arguments[command]
 end
+--}}}
 --{{{ get help message
 function meta.get_help_message(self, command)
     local help_message = self.functiontable.help_messages[command]
@@ -233,6 +260,11 @@ function meta.get_help_message(self, command)
             return string.format("command '%s' unknown", command)
         end
     end
+end
+--}}}
+--{{{ get alias
+function meta.get_alias(self, command)
+    return self.aliases[command]
 end
 --}}}
 --}}}
@@ -446,6 +478,11 @@ function meta.is_internal_command(self, command)
     return string.match(command, "^%" .. self.internal_command_modifier)
 end
 --}}}
+--{{{ execute command
+function meta.execute_command(self, command, args)
+    -- TODO
+end
+--}}}
 --}}}
 --{{{ Prompt functions
 -- return to prompt of the session
@@ -570,6 +607,8 @@ function meta.parse_line(self, line)
     return command, args
 end
 --}}}
+--}}}
+--{{{ Process arguments
 --{{{ Apply options to arguments
 function meta.apply_options_to_arguments(self, command, args)
     self:set_local_debug_context("parsing")
