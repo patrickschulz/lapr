@@ -1,8 +1,8 @@
 #! /usr/bin/env lua
 local lapp = require "pl.lapp"
 
-local project_lib = require "project"
-local session_lib = require "session"
+local project_lib = require "laprlib.project"
+local session_lib = require "laprlib.session"
 
 local session = session_lib.create(session_lib.default_action_handlers)
 
@@ -91,6 +91,7 @@ session:add_action_handler({
     help_message = "load project",
     save_data = "project_lib"
 })
+session:add_hook(function() print("create") end, "after", "create")
 
 if not args.noload then
     session:execute_command("load")
