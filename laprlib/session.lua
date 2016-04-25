@@ -1,6 +1,6 @@
 --{{{ Module loading
 local util = require "laprlib.util"
-local rl = require "readline"
+--local rl = require "readline"
 
 local pl = {}
 pl.pretty = require "pl.pretty"
@@ -647,7 +647,9 @@ end
 --{{{ Read next command
 function meta.next_command(self)
     -- read next command line, save and increment line counter
-    local line = rl.readline(self:prompt())
+    --local line = rl.readline(self:prompt())
+    io.write(self:prompt())
+    local line = io.read()
     if not line then
         return nil
     end
