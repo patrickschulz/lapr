@@ -6,6 +6,8 @@ local pl = {}
 pl.pretty = require "pl.pretty"
 pl.utils = require "pl.utils"
 pl.tablex = require "pl.tablex"
+pl.stringx = require "pl.stringx"
+pl.file = require "pl.file"
 
 local dp = pl.pretty.dump
 --}}}
@@ -21,6 +23,15 @@ local M = {}
 
 -- metatable for session objects
 local meta = util.new_metatable("sessionlib")
+
+--{{{ promptlookup
+promptlookup = { 
+}
+local function update_promptlookup(self, promptlookup)
+    promptlookup["%P"] = self.name
+    promptlookup["%l"] = self.line_number
+end
+--}}}
 
 --{{{ constants, options etc.
 M.default_action_handlers = "default_action_handlers"
@@ -89,6 +100,8 @@ function M.create(...)
 
     setmetatable(self, meta)
 
+    update_promptlookup(self, promptlookup)
+
     return self
 end
 --}}}
@@ -104,11 +117,12 @@ end
 --{{{ set name
 function meta.set_name(self, name)
     self.name = name
+    promptlookup["%P"] = name
 end
 --}}}
 --{{{ set prompt
-function meta.set_prompt(self)
-
+function meta.set_prompt(self, prompt)
+    self.settings.prompt = prompt
 end
 --}}}
 --{{{ set internal command modifier
@@ -119,6 +133,12 @@ function meta.set_internal_command_modifier(self, modifier)
         return self:raise_or_return_error(string.format("illegal internal command modifier: %s", modifier))
     end
     self.internal_command_modifier = modifier
+end
+--}}}
+--{{{ set line number
+function meta.set_line_number(self, line_number)
+    self.line_number = line_number
+    promptlookup["%l"] = line_number
 end
 --}}}
 --}}}
@@ -417,6 +437,11 @@ function meta.raise_error(self, msg)
     error(msg)
 end
 --}}}
+--{{{ print error
+function meta.print_error(self, msg)
+    print(msg)
+end
+--}}}
 --}}}
 --{{{ Utility functions
 --{{{ generate unique module name
@@ -479,24 +504,72 @@ end
 --}}}
 --{{{ execute command
 function meta.execute_command(self, command, args)
-    -- TODO
+    -- usually, the commandline is processed and args is a (at least empty) table.
+    -- in order to make this function useful for public use without arguments, we create a table if it is absent
+    local args = args or {}
+    command, args = self:resolve_alias(command, args)
+
+    if self:check_command(command, args) then -- checks for existance of the command and validity of use_data
+        -- execute the 'before' hook, then the action handler, then the 'after' hook (if they exist)
+        self:execute_hook("before", command)
+
+        local func = self:get_function(command, args) -- the arguments are needed for super commands which consist of multiple handlers
+        local final_args = self:process_arguments(command, args)
+        local result = self:call_handler(func, final_args)
+        self:save_data(command, result)
+
+        self:execute_hook("after", command, args)
+    end
+end
+--}}}
+--{{{ execute silent command
+--TODO: currently this is NOT silent
+function meta.execute_silent_command(self, command, args)
+    -- usually, the commandline is processed and args is a (at least empty) table.
+    -- in order to make this function useful for public use without arguments, we create a table if it is absent
+    local args = args or {}
+    command, args = self:resolve_alias(command, args)
+
+    if self:check_command(command, args) then -- checks for existance of the command and validity of use_data
+        -- execute the 'before' hook, then the action handler, then the 'after' hook (if they exist)
+        self:execute_hook("before", command)
+
+        local func = self:get_function(command, args) -- the arguments are needed for super commands which consist of multiple handlers
+        local final_args = self:process_arguments(command, args)
+        local result = self:call_handler(func, final_args)
+        self:save_data(command, result)
+
+        self:execute_hook("after", command, args)
+    end
+end
+--}}}
+--{{{ load script
+function meta.load_script(self, script)
+    local content = pl.file.read(script)
+    if not content then
+        self:print_error(string.format("could not read script '%s'", script))
+        return
+    end
+    for line in pl.stringx.lines(content) do
+        local command, args = self:parse_line(line)
+        self:execute_command(command, args)
+    end
 end
 --}}}
 --}}}
 --{{{ Prompt functions
 -- return to prompt of the session
 function meta.prompt(self)
-    local prompt = string.gsub(self.settings.prompt, "%%P", self.name)
-    prompt = string.gsub(prompt, "%%l", self.line_number)
+    local prompt = string.gsub(self.settings.prompt, "(%%.)", promptlookup)
     return prompt
 end
 --}}}
 --{{{ Action and hook execution, argument handling
 --{{{ execute hook
-function meta.execute_hook(self, hookstr, suffix)
+function meta.execute_hook(self, hookstr, suffix, args)
     if self.settings.enable_hooks then
         local hook = self:get_hook(hookstr, suffix)
-        if hook then hook() end
+        if hook then hook(self, args) end
     end
 end
 --}}}
@@ -578,7 +651,7 @@ function meta.next_command(self)
     if not line then
         return nil
     end
-    self.line_number = self.line_number + 1
+    self:set_line_number(self.line_number + 1)
     return line
 end
 --}}}
@@ -684,27 +757,14 @@ function meta.loop(self)
     self:execute_hook("atentry")
     while self.open do
         self:execute_hook("atbegincycle")
-        -- read the command line
+        -- read the command line and exit if invalid
         local line = self:next_command()
         if not line then
             break
         end
 
-        -- parse the command line
         local command, args = self:parse_line(line)
-        command, args = self:resolve_alias(command, args)
-
-        if self:check_command(command, args) then -- checks for existance of the command and validity of use_data
-            -- execute the 'before' hook, then the action handler, then the 'after' hook (if they exist)
-            self:execute_hook("before", command)
-
-            local func = self:get_function(command, args) -- the arguments are needed for super commands which consist of multiple handlers
-            local final_args = self:process_arguments(command, args)
-            local result = self:call_handler(func, final_args)
-            self:save_data(command, result)
-
-            self:execute_hook("after", command)
-        end
+        self:execute_command(command, args)
     end
     self:execute_hook("atexit")
 end

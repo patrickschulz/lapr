@@ -64,6 +64,13 @@ function M.is_hidden(filename)
     return pl.path.basename(filename):sub(1, 1) == "."
 end
 --}}}
+--{{{ ask user
+function M.ask_user(prompt)
+    io.stdout:write(prompt)
+    local line = io.stdin:read()
+    return line
+end
+--}}}
 
 return M
 

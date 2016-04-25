@@ -1,21 +1,27 @@
 --{{{ Module loading
-local pl  = {}
-pl.file   = require "pl.file"
-pl.path   = require "pl.path"
-pl.dir    = require "pl.dir"
-pl.tablex = require "pl.tablex"
-pl.pretty = require "pl.pretty"
-pl.utils  = require "pl.utils"
+local pl   = {}
+pl.file    = require "pl.file"
+pl.path    = require "pl.path"
+pl.dir     = require "pl.dir"
+pl.tablex  = require "pl.tablex"
+pl.pretty  = require "pl.pretty"
+pl.utils   = require "pl.utils"
+pl.stringx = require "pl.stringx"
+
+local dp = pl.pretty.dump
 
 local latex = require "laprlib.latex"
 
 local util = require "laprlib.util"
+local packages = require "laprlib.packages"
 --}}}
 
 local M = {}
 
 -- metatable for project objects
 local meta = util.new_metatable("projectlib")
+
+local packagelookup = packages.load("data/packagelookup.lua")
 
 --{{{ Object Creation Functions
 --{{{ create a project
@@ -49,16 +55,18 @@ function M.create(name, file_list)
         directories = { 
             file_dir = "files",
             image_dir = "images",
-            project_dir = ".build"
+            project_dir = ".build",
         },
         last_active_file = nil,
+        temporary_file = ".difftempfile", -- TODO: choose better name
 
         project_name = name,
 
         packages = {
-            "tikz",
-            "kantlipsum"
+            --{ name = "kantlipsum" }
         },
+
+        last_edits = nil,
 
         -- environment
         engine = "lualatex --interaction=nonstopmode",
@@ -117,6 +125,11 @@ function meta.reset(self, mode)
 end
 --}}}
 --{{{ Utility Functions
+--{{{ check existing project
+function meta.check_existing_project(filename)
+    return pl.path.exists(".project")
+end
+--}}}
 --{{{ get full file path
 function meta.get_full_file_path(self, filename)
     -- search order:
@@ -135,6 +148,22 @@ function meta.get_full_file_path(self, filename)
     end
 end
 --}}}
+--{{{ get filename
+function meta.get_filename(self, filename)
+    if not (filename or self.last_active_file) then
+        return nil, "specify file to edit"
+    end
+    local filename = filename or self.last_active_file
+    if filename == "preamble" then
+        filename = self.file_list.preamble_file
+    end
+    filename = self:get_full_file_path(filename)
+    if not filename then
+        return nil, string.format("file not found in project")
+    end
+    return filename
+end
+--}}}
 --{{{ info
 function meta.info(self, mode)
     local indent = "  "
@@ -149,6 +178,21 @@ function meta.info(self, mode)
     end
     print(string.format("engine: %s", self.engine))
     print(string.format("viewer: %s", self.viewer))
+end
+--}}}
+--{{{ compare and insert missing packages
+function meta.compare_and_insert_missing_packages(self, packagelist)
+    local used_packages = {}
+    for _, package in ipairs(self.packages) do
+        table.insert(used_packages, package.name)
+    end
+    local new_packages = pl.tablex.keys(pl.tablex.difference(pl.tablex.makeset(packagelist), pl.tablex.makeset(used_packages)))
+    for _, package in ipairs(new_packages) do
+        table.insert(self.packages, { name = package })
+    end
+    -- update preamble
+    local preamble_content = self:get_preamble_content()
+    util.write_sty_file(self.file_list.preamble_file, preamble_content, self.directories.file_dir)
 end
 --}}}
 --}}}
@@ -184,7 +228,7 @@ function meta.add_file(self, filename)
             self:add_file(fn)
         end
     else
-        local content = string.format("%% %s.tex", filename)
+        local content = string.format("%% %s.tex\n", filename)
         util.write_tex_file(filename, content, self.directories.file_dir)
         table.insert(self.file_list, filename)
         self:write_master_file()
@@ -203,6 +247,68 @@ function meta.add_aux_file(self, filename)
 end
 --}}}
 --{{{ Editing Functions
+--{{{ create temporary copy
+function meta.create_temporary_copy(self, filename)
+    local ret, msg = pl.dir.copyfile(filename, self.temporary_file, true)
+    if not ret then print(msg) end
+end
+--}}}
+--{{{ delete temporary copy
+function meta.delete_temporary_copy(self)
+    os.remove(self.temporary_file)
+end
+--}}}
+--{{{ get diff
+function meta.get_diff(self, filename)
+    local command = string.format("diff %s %s", filename, self.temporary_file)
+    local status, code, stdout, stderr = pl.utils.executeex(command)
+    return stdout
+end
+--}}}
+--{{{ extract commands from diff
+function meta.extract_commands_from_diff(self, diff)
+    local newlines = {}
+    for line in pl.stringx.lines(diff) do
+        if pl.stringx.startswith(line, "<") then
+            line = string.sub(line, 3)
+            table.insert(newlines, line)
+        end
+    end
+    return newlines
+end
+--}}}
+--{{{ parse latex commands
+function meta.parse_latex_commands(self, lines)
+    local packagelist = {}
+    for _, line in ipairs(lines) do
+        for command in string.gmatch(line, "\\(%a+)") do
+            local package
+            if packagelookup:is_command(command) then
+                package = packagelookup:get_package("commands", command)
+            else
+                package = packagelookup:ask_package("command", command)
+                packagelookup:insert_command(command, package)
+            end
+            if not packagelookup:is_latex_command(command) then
+                table.insert(packagelist, package)
+            end
+        end
+        for env in string.gmatch(line, "\\begin%{([^}]+)%}") do
+            local package
+            if packagelookup:is_environment(env) then
+                package = packagelookup:get_package("environments", env)
+            else
+                package = packagelookup:ask_package("environment", env)
+                packagelookup:insert_environment(env, package)
+            end
+            if not packagelookup:is_latex_environment(command) then
+                table.insert(packagelist, package)
+            end
+        end
+    end
+    return packagelist
+end
+--}}}
 --{{{ edit preamble
 function meta.edit_preamble(self)
     self:edit_file(self.file_list.preamble_file)
@@ -210,26 +316,26 @@ end
 --}}}
 --{{{ edit file
 function meta.edit_file(self, filename)
-    if not (filename or self.last_active_file) then
-        print("specify file to edit")
-        return
-    end
-    local filename = filename or self.last_active_file
-    if filename == "preamble" then
-        filename = self.file_list.preamble_file
-    end
-    filename = self:get_full_file_path(filename)
-    if not filename then
-        print("file not found in project")
-        return
-    end
+    local filename, msg = self:get_filename(filename)
+    if not filename then print(msg) return end
+
+    -- before editing, we need to copy the file in order to make a diff after the edit
+    self:create_temporary_copy(filename)
+
     local command = string.format("%s %s", self.editor, filename)
     os.execute(command)
+
+    local diff = self:get_diff(filename)
+    local newlines = self:extract_commands_from_diff(diff)
+    local packagelist = self:parse_latex_commands(newlines)
+    self:compare_and_insert_missing_packages(packagelist)
+
+    self:delete_temporary_copy()
 end
 --}}}
 --{{{ add package
-function meta.add_package(self, package)
-    table.insert(self.packages, package)
+function meta.add_package(self, package, options)
+    table.insert(self.packages, { name = package, options = options })
 end
 --}}}
 --}}}
@@ -300,7 +406,14 @@ function meta.get_preamble_content(self)
         "\\setdefaultlanguage{german}",
     }
     for _, package in ipairs(self.packages) do
-        local packagestr = string.format("\\usepackage{%s}", package)
+        local packagename = package.name
+        local options = package.options
+        local packagestr
+        if options then
+            packagestr = string.format("\\usepackage[%s]{%s}", packagename, table.unpack(options, ", "))
+        else
+            packagestr = string.format("\\usepackage{%s}", packagename)
+        end
         table.insert(content, packagestr)
     end
     return table.concat(content, "\n")
@@ -373,6 +486,22 @@ function meta.view(self)
     os.execute(command)
 end
 --}}}
+--}}}
+--{{{ Minimal session functions
+-- A 'minimal' session gives to user the possibility to try out some commands while speeding up compilation time
+function meta.create_minimal(self, template, options)
+
+end
+
+function meta.insert_minimal(self, filename)
+
+end
+--}}}
+--{{{ Autocommands
+-- the code typed typed the user should be logged and corrected/extended accordingly.
+-- For example, if i used a tikzpicture environment and the tikz package is not yet loaded, the load code should we inserted automatically
+-- For this, a big table with (ideally) all commands the user could type should be saved. Also it should be possible to add stuff to this table, for foreign
+-- packages. By this, the database gets more and more accurat. In the end, maybe, one doesn't have to write the preamble by hand.
 --}}}
 
 setmetatable(M, meta)
