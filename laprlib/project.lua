@@ -301,7 +301,7 @@ function meta.parse_latex_commands(self, lines)
                 package = packagelookup:ask_package("environment", env)
                 packagelookup:insert_environment(env, package)
             end
-            if not packagelookup:is_latex_environment(command) then
+            if not packagelookup:is_latex_environment(env) then
                 table.insert(packagelist, package)
             end
         end
