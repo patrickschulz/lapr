@@ -11,9 +11,9 @@ pl.stringx = require "pl.stringx"
 local dp = pl.pretty.dump
 
 local latex = require "laprlib.latex"
-
 local util = require "laprlib.util"
 local packages = require "laprlib.packages"
+local config = require "laprlib.config"
 --}}}
 
 local M = {}
@@ -21,7 +21,9 @@ local M = {}
 -- metatable for project objects
 local meta = util.new_metatable("projectlib")
 
-local packagelookup = packages.load("data/packagelookup.lua")
+-- load package database
+-- this load both the system and the user database
+local packagelookup = packages.load()
 
 --{{{ Object Creation Functions
 --{{{ create a project

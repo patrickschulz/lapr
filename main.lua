@@ -4,6 +4,9 @@ local lapp = require "pl.lapp"
 local project_lib = require "laprlib.project"
 local session_lib = require "laprlib.session"
 local util = require "laprlib.util"
+local config = require "laprlib.config"
+
+config.create_config_directories()
 
 local session = session_lib.create(session_lib.default_action_handlers)
 

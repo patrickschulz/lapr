@@ -3,21 +3,59 @@ pl.pretty = require "pl.pretty"
 pl.tablex = require "pl.tablex"
 pl.file = require "pl.file"
 
+local dp = pl.pretty.dump
+
 local util = require "laprlib.util"
+local config = require "laprlib.config"
 
 local M = {}
 local meta = util.new_metatable("packageslib")
 meta.__gc = function(self) self:save() end
 
-function M.load(filename)
+local function internal_load(filename, mode)
     local package_table = pl.file.read(filename)
+    local database = { commands = {}, environments = {} }
     if package_table then
         local t = pl.pretty.read(package_table)
-        t.filename = filename
-        return setmetatable(t, meta)
+        if t then
+            database = t
+        else
+            print(string.format("error while reading %s package database ('%s')", mode, filename))
+        end
     else
-        return nil, string.format("could not read package database ('%s')", filename)
+        print(string.format("could not read %s package database ('%s')", mode, filename))
     end
+    return database
+end
+
+local function get_new_packages_representation(database)
+    local system_database = internal_load(config.get_system_database_name(), "system") 
+    local new_database = { commands = {}, environments = {} }
+    for command, package in pairs(database.commands) do
+        if not system_database.commands[command] then
+            new_database.commands[command] = package
+        end
+    end
+    for env, package in pairs(database.environments) do
+        if not system_database.environments[env] then
+            new_database.environments[env] = package
+        end
+    end
+    return pl.pretty.write(new_database)
+end
+
+function M.load()
+    -- system
+    local filename = config.get_system_database_name()
+    local system_database = internal_load(filename, "system")
+    -- user
+    filename = config.get_user_database_name()
+    local user_database = internal_load(filename, "user")
+
+    -- merge both tables
+    local commands = pl.tablex.merge(system_database.commands, user_database.commands, true)
+    local environments = pl.tablex.merge(system_database.environments, user_database.environments, true)
+    return setmetatable({ commands = commands, environments = environments }, meta)
 end
 
 function meta.is_command(self, command)
@@ -53,8 +91,11 @@ function meta.insert_environment(self, command, package)
 end
 
 function meta.save(self)
-    local rep = pl.pretty.write(self)
-    pl.file.write(self.filename, rep)
+    local rep = get_new_packages_representation(self)
+    local filename = config.get_user_database_name()
+    if not pl.file.write(filename, rep) then
+        print(string.format("could not write user database to file '%s'", filename))
+    end
 end
 
 return M

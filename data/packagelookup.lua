@@ -1,34 +1,33 @@
 {
-  environments = {
-    ["align*"] = "amsmath",
-    ["gather*"] = "amsmath",
-    gather = "amsmath",
-    axis = "pgfplots",
-    semilogyaxis = "pgfplots",
-    semilogxaxis = "pgfplots",
-    align = "amsmath",
-    bar = "latex",
-    loglogaxis = "pgfplots",
-    tikzpicture = "tikz",
-    center = "latex"
-  },
   commands = {
     section = "latex",
-    foo = "latex",
+    scriptsize = "latex",
+    subsection = "latex",
+    raggedright = "latex",
+    kant = "kantlipsum",
+    normalsize = "latex",
+    draw = "tikz",
     usepackage = "latex",
     centering = "latex",
-    subsection = "latex",
-    kant = "kantlipsum",
     ["end"] = "latex",
-    begin = "latex",
-    normalsize = "latex",
+    tikz = "tikz",
     newpage = "latex",
     addplot = "pgfplots",
-    scriptsize = "latex",
-    tikz = "tikz",
-    raggedright = "latex",
-    draw = "tikz",
-    subsubsection = "latex"
+    subsubsection = "latex",
+    begin = "latex"
+  },
+  environments = {
+    ["gather*"] = "amsmath",
+    align = "amsmath",
+    center = "latex",
+    tikzpicture = "tikz",
+    axis = "pgfplots",
+    bar = "latex",
+    semilogxaxis = "pgfplots",
+    loglogaxis = "pgfplots",
+    gather = "amsmath",
+    semilogyaxis = "pgfplots",
+    ["align*"] = "amsmath"
   },
   filename = "data/packagelookup.lua"
 }
