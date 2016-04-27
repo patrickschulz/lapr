@@ -482,8 +482,24 @@ end
 function meta.purge(self) -- use with care
     -- this function removes all files created by the project
     -- this includes both files created by this tool and files created by LaTeX
-    --
-    -- current simple "implementation": delete all files which are not in the auxiliary file list
+    local files = pl.dir.getfiles(".")
+    for _, file in ipairs(files) do
+        if not (util.is_hidden(file) and self.settings.ignore_hidden) then
+            -- check if file is 'allowed':
+            -- - it can be part of the project
+            -- - it can be an auxiliary which should not be (re-)moved
+            if not self:is_allowed_file(pl.path.basename(file)) then
+                if self.settings.debug then
+                    print(string.format("%s is not allowed and will be removed", file))
+                end
+                pl.file.delete(file)
+            else
+                if self.settings.debug then
+                    print(string.format("%s is allowed", file))
+                end
+            end
+        end
+    end
 end
 --}}}
 --{{{ is allowed file
