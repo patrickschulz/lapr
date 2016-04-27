@@ -10,10 +10,11 @@ pl.stringx = require "pl.stringx"
 
 local dp = pl.pretty.dump
 
-local latex = require "laprlib.latex"
-local util = require "laprlib.util"
+local latex    = require "laprlib.latex"
+local util     = require "laprlib.util"
 local packages = require "laprlib.packages"
-local config = require "laprlib.config"
+local config   = require "laprlib.config"
+local debug    = require "laprlib.debug"
 --}}}
 
 local M = {}
@@ -244,6 +245,10 @@ end
 --}}}
 --{{{ File Functions
 function meta.add_file(self, filename)
+    if not filename then
+        print("no filename given")
+        return
+    end
     if type(filename) == "table" then
         for _, fn in ipairs(filename) do
             self:add_file(fn)
