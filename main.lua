@@ -67,6 +67,12 @@ session:add_action_handler({
     use_data = "project_lib"
 })
 session:add_action_handler({
+    command = "list",
+    action = project_lib.list_packages,
+    help_message = "list all used packages",
+    use_data = "project_lib"
+})
+session:add_action_handler({
     command = "compile",
     action = project_lib.compile,
     help_message = "compile the document",

@@ -13,8 +13,16 @@
     tikz = "tikz",
     newpage = "latex",
     addplot = "pgfplots",
+    legend = "pgfplots",
+    addlegendentry = "pgfplots",
     subsubsection = "latex",
-    begin = "latex"
+    begin = "latex",
+    SI="siunitx",
+    si="siunitx",
+    num="siunitx",
+    toprule="booktabs",
+    midrule="booktabs",
+    bottomrule="booktabs",
   },
   environments = {
     ["gather*"] = "amsmath",

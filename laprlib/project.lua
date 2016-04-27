@@ -22,7 +22,7 @@ local M = {}
 local meta = util.new_metatable("projectlib")
 
 -- load package database
--- this load both the system and the user database
+-- this loads both the system and the user database
 local packagelookup = packages.load()
 
 --{{{ Object Creation Functions
@@ -83,7 +83,15 @@ function M.create(name, file_list)
     }
     setmetatable(self, meta)
 
-    -- create directories
+    self:load_config_file()
+
+    self:create_dirs_and_files()
+
+    return self
+end
+--}}}
+--{{{ create standard directories and files
+function meta.create_dirs_and_files(self)
     for _, dir in pairs(self.directories) do
         pl.path.mkdir(dir)
     end
@@ -99,8 +107,12 @@ function M.create(name, file_list)
 
     -- project master file (includes all other files)
     self:write_master_file()
-
-    return self
+end
+--}}}
+--{{{ load config file
+function meta.load_config_file(self)
+    local filename = config.get_user_config_filename()
+    local settings = dofile(filename)
 end
 --}}}
 --}}}
@@ -180,6 +192,13 @@ function meta.info(self, mode)
     end
     print(string.format("engine: %s", self.engine))
     print(string.format("viewer: %s", self.viewer))
+end
+--}}}
+--{{{ list packages
+function meta.list_packages(self)
+    for _, package in ipairs(self.packages) do
+        print(package.name)
+    end
 end
 --}}}
 --{{{ compare and insert missing packages

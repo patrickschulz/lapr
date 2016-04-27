@@ -7,6 +7,7 @@ local dp = pl.pretty.dump
 
 local util = require "laprlib.util"
 local config = require "laprlib.config"
+local debug = require "laprlib.debug"
 
 local M = {}
 local meta = util.new_metatable("packageslib")
@@ -20,10 +21,10 @@ local function internal_load(filename, mode)
         if t then
             database = t
         else
-            print(string.format("error while reading %s package database ('%s')", mode, filename))
+            debug.message(string.format("error while reading %s package database ('%s')", mode, filename))
         end
     else
-        print(string.format("could not read %s package database ('%s')", mode, filename))
+        debug.message(string.format("could not read %s package database ('%s')", mode, filename))
     end
     return database
 end
@@ -41,13 +42,28 @@ local function get_new_packages_representation(database)
             new_database.environments[env] = package
         end
     end
-    return pl.pretty.write(new_database)
+    if pl.tablex.size(new_database.commands) == 0 and pl.tablex.size(new_database.environments) == 0 then
+        return nil
+    else
+        return pl.pretty.write(new_database)
+    end
 end
 
 function M.load()
     -- system
     local filename = config.get_system_database_name()
-    local system_database = internal_load(filename, "system")
+    local system_database = { commands = {}, environments = {} }
+    if type(filename) == "table" then
+        for _, fname in ipairs(filename) do
+            local temp = internal_load(fname, "system")
+            local commands = pl.tablex.merge(system_database.commands, temp.commands, true)
+            local environments = pl.tablex.merge(system_database.environments, temp.environments, true)
+            system_database.commands = commands
+            system_database.environments = environments
+        end
+    else
+        system_database = internal_load(filename, "system")
+    end
     -- user
     filename = config.get_user_database_name()
     local user_database = internal_load(filename, "user")
@@ -92,9 +108,11 @@ end
 
 function meta.save(self)
     local rep = get_new_packages_representation(self)
-    local filename = config.get_user_database_name()
-    if not pl.file.write(filename, rep) then
-        print(string.format("could not write user database to file '%s'", filename))
+    if rep then
+        local filename = config.get_user_database_name()
+        if not pl.file.write(filename, rep) then
+            debug.message(string.format("could not write user database to file '%s'", filename))
+        end
     end
 end
 
