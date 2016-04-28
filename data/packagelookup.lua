@@ -36,6 +36,5 @@
     gather = "amsmath",
     semilogyaxis = "pgfplots",
     ["align*"] = "amsmath"
-  },
-  filename = "data/packagelookup.lua"
+  }
 }

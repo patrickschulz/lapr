@@ -79,7 +79,7 @@ function M.create(name, file_list)
         settings = {
             ignore_hidden = true,
             raw_output = false,
-            debug = false,
+            debug = true,
         },
     }
     setmetatable(self, meta)
@@ -136,6 +136,20 @@ function meta.reset(self, mode)
         self.engine = "lualatex --interaction=nonstopmode"
     elseif mode == "viewer" then
         self.viewer = "zathura --fork"
+    end
+end
+function meta.generic_set(self, mode, ...)
+    if mode == "editor" then
+
+    elseif mode == "engine" then
+
+    elseif mode == "viewer" then
+
+    elseif mode == "raw" then
+        if not ... then
+            print(string.format("raw_output = %s", self.settings.raw_output))
+        end
+        self.settings.raw_output = (... and true) or false
     end
 end
 --}}}
@@ -369,11 +383,11 @@ end
 function meta.compile(self, mode)
     if mode == "document" or not mode then
         local command = string.format("%s %s", self.engine, self.file_list.main_file)
-        if self.settings.raw_output then
-            os.execute(command)
-        else
-            local status, code, stdout, stderr = pl.utils.executeex(command)
+        if not self.settings.raw_output then
             latex.parse_output(stdout)
+            local status, code, stdout, stderr = pl.utils.executeex(command)
+        else
+            os.execute(command)
         end
     elseif mode == "bibtex" then
 
@@ -492,7 +506,7 @@ function meta.purge(self) -- use with care
                 if self.settings.debug then
                     print(string.format("%s is not allowed and will be removed", file))
                 end
-                pl.file.delete(file)
+                --pl.file.delete(file)
             else
                 if self.settings.debug then
                     print(string.format("%s is allowed", file))

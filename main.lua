@@ -27,7 +27,13 @@ Supported options:
                                             smart:  insert all conflict-less packages without confirmation
                                             ask:    insert all packages, but ask the user
                                             benno:  don't do anything, since i don't want to be bevormunded!
+    -v,--version                        display version information and exit
 ]]
+if args.version then
+    print([[lapr - a commandline IDE for LaTeX documents
+Development Version 0.1]])
+    os.exit(0)
+end
 if args.script == "" then
     args.script = nil
 end
@@ -89,7 +95,8 @@ session:add_action_handler({
     action = {
         editor = project_lib.set_editor,
         engine = project_lib.set_latex_engine,
-        viewer = project_lib.set_viewer
+        viewer = project_lib.set_viewer,
+        raw    = session_lib.bind(project_lib.generic_set, 2, "raw")
     },
     help_message = "latex settings",
     use_data = "project_lib"
