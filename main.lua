@@ -100,8 +100,11 @@ session:add_action_handler({
 })
 session:add_action_handler({
     command = "show",
-    action = project_lib.show_preamble,
-    help_message = "show the preamble including the document class",
+    action = {
+        preamble = project_lib.show_preamble,
+        structure = project_lib.show_structure,
+    },
+    help_message = "show is a super command. List of subcommands:\n  preamble: show the preamble including the document class\n  structure: show the document structure (parts, chapters, section, etc.)",
     use_data = "project_lib"
 })
 session:add_action_handler({

@@ -465,6 +465,12 @@ function meta.add_package(self, package, options)
 end
 --}}}
 --}}}
+--{{{ Structuring Functions
+--{{{ list structure
+function meta.list_structure(self)
+end
+--}}}
+--}}}
 --{{{ Document Generation Functions
 function meta.compile(self, mode)
     if mode == "document" or not mode then
@@ -568,7 +574,7 @@ function meta.get_preamble_content(self)
             local options = package.options
             local packagestr
             if options then
-                packagestr = string.format("\\usepackage[%s]{%s}", packagename, table.unpack(options, ", "))
+                packagestr = string.format("\\usepackage[%s]{%s}", packagename, table.concat(options, ", "))
             else
                 packagestr = string.format("\\usepackage{%s}", packagename)
             end
