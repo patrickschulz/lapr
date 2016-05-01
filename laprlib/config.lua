@@ -3,15 +3,17 @@ local path = require "pl.path"
 local userconfig = {
     datadir = os.getenv("HOME") .. "/.config/lapr/data",
     datafile = "packagelookup.lua",
-    configdir = os.getenv("HOME") .. "/.config/lapr",
-    configfile = "config.lua"
+    --configdir = os.getenv("HOME") .. "/.config/lapr",
+    configdir = ".",
+    configfile = "config.lua",
+    templatefile = "templates.lua",
 }
 
 local systemconfig = {
     datadir = "/usr/share/lua/5.3/lapr/data",
     datafile = "packagelookup.lua",
     configdir = "/usr/share/lua/5.3/lapr/config",
-    configfile = "config.lua"
+    configfile = "config.lua",
 }
 
 local M = {}
@@ -39,6 +41,10 @@ end
 
 function M.get_user_config_filename()
     return userconfig.configdir .. "/" .. userconfig.configfile
+end
+
+function M.get_user_templates_filename()
+    return userconfig.configdir .. "/" .. userconfig.templatefile
 end
 
 return M

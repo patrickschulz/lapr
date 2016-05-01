@@ -37,13 +37,14 @@ local packagelookup = packages.load()
 --  initial files
 --
 -- project files can be added later on
-function M.create(name, file_list)
+function M.create(name, class, file_list)
     if not name then
         print("no project name given")
         return
     end
     -- arguments
     local file_list = file_list or {}
+    local class = class or "article"
 
     -- object
     local self = {
@@ -59,6 +60,7 @@ function M.create(name, file_list)
             file_dir = "files",
             image_dir = "images",
             project_dir = ".build",
+            minimal_dir = ".minimal",
         },
         last_active_file = nil,
         temporary_file = ".difftempfile", -- TODO: choose better name
@@ -67,12 +69,16 @@ function M.create(name, file_list)
 
         packages = {
             --{ name = "kantlipsum" }
+            { name = "amsmath", options = { "sumlimits", "intlimits" } },
         },
+        class = { class, options = {} },
 
         last_edits = nil,
 
+        minimal_templates = nil,
+
         -- environment
-        engine = "lualatex --interaction=nonstopmode",
+        engine = { exe = "lualatex", args = "--interaction=nonstopmode" },
         editor = "vim",
         viewer = "zathura --fork",
 
@@ -85,6 +91,7 @@ function M.create(name, file_list)
     setmetatable(self, meta)
 
     self:load_config_file()
+    self:load_minimal_templates()
 
     self:create_dirs_and_files()
 
@@ -111,19 +118,82 @@ function meta.create_dirs_and_files(self)
 end
 --}}}
 --{{{ load config file
+-- This function is written rather explicit, one COULD use just the table loaded from the config file and insert all entries automatically.
+-- But the way used here makes it possible to have a more flexible way of handling options
 function meta.load_config_file(self)
     local filename = config.get_user_config_filename()
-    local settings = dofile(filename)
+    local conf = loadfile(filename)
+    if conf then
+        conf = conf()
+        if conf.viewer then
+            self.viewer = conf.viewer
+        end
+        if conf.engine then
+            self.engine = conf.engine
+        end
+        if conf.editor then
+            self.editor = conf.editor
+        end
+        if conf.settings then
+            if conf.settings.ignore_hidden then self.settings.ignore_hidden = conf.settings.ignore_hidden end
+            if conf.settings.raw_output then self.settings.raw_output = conf.settings.raw_output end
+            if conf.settings.debug then self.settings.debug = conf.settings.debug end
+        end
+        if conf.file_list then
+            if conf.settings.main_file then self.settings.main_file = conf.settings.main_file end
+            if conf.settings.project_file then self.settings.project_file = conf.settings.project_file end
+            if conf.settings.preamble_file then self.settings.preamble_file = conf.settings.preamble_file end
+        end
+        if conf.directories then
+            if conf.settings.file_dir then self.settings.file_dir = conf.settings.file_dir end
+            if conf.settings.image_dir then self.settings.image_dir = conf.settings.image_dir end
+            if conf.settings.project_dir then self.settings.project_dir = conf.settings.project_dir end
+            if conf.settings.minimal_dir then self.settings.minimal_dir = conf.settings.minimal_dir end
+        end
+        if conf.temporary_file then 
+            self.temporary_file = conf.temporary_file
+        end
+    else
+        print("could not load user config file")
+    end
+end
+--}}}
+--{{{ load minimal templates
+function meta.load_minimal_templates(self)
+    local filename = config.get_user_templates_filename()
+    local templates = loadfile(filename)
+    if templates then
+        templates = templates()
+        self.minimal_templates = templates
+    else
+        print("could not load user templates file")
+    end
 end
 --}}}
 --}}}
 --{{{ settings
+function meta.set_class(self, class, ...)
+    if class then
+
+    else
+        print(self.class)
+    end
+end
+
 function meta.set_editor(self, editor)
-    self.editor = editor
+    if editor then
+        self.editor = editor
+    else
+        print(self.editor)
+    end
 end
 
 function meta.set_latex_engine(self, engine)
-    self.engine = engine
+    if engine then
+        self.engine.exe = engine
+    else
+        print(self.engine.exe)
+    end
 end
 
 function meta.set_viewer(self, viewer)
@@ -133,7 +203,7 @@ function meta.reset(self, mode)
     if mode == "editor" then
         self.editor = "vim"
     elseif mode == "engine" then
-        self.engine = "lualatex --interaction=nonstopmode"
+        self.engine.exe = "lualatex --interaction=nonstopmode"
     elseif mode == "viewer" then
         self.viewer = "zathura --fork"
     end
@@ -144,12 +214,21 @@ function meta.generic_set(self, mode, ...)
     elseif mode == "engine" then
 
     elseif mode == "viewer" then
-
+        if not ... then
+            print(string.format("pdf viewer = %s", self.viewer))
+        end
     elseif mode == "raw" then
         if not ... then
             print(string.format("raw_output = %s", self.settings.raw_output))
+        else
+            self.settings.raw_output = (... == "true") or false
         end
-        self.settings.raw_output = (... and true) or false
+    elseif mode == "class" then
+        if not ... then
+
+        else
+
+        end
     end
 end
 --}}}
@@ -205,14 +284,21 @@ function meta.info(self, mode)
     for _, file in ipairs(self.file_list) do
         print(string.format(" -> %s", file))
     end
-    print(string.format("engine: %s", self.engine))
+    print(string.format("engine: %s", self.engine.exe))
     print(string.format("viewer: %s", self.viewer))
+end
+--}}}
+--{{{ show preamble
+function meta.show_preamble(self)
+    local classline = self:get_classline()
+    local preamble = self:get_preamble_content()
+    print(string.format("%s\n\n%s\n", classline, preamble))
 end
 --}}}
 --{{{ list packages
 function meta.list_packages(self)
     for _, package in ipairs(self.packages) do
-        print(package.name)
+        print(string.format("%s [%s]", package.name, table.concat(package.options, ", ")))
     end
 end
 --}}}
@@ -382,10 +468,10 @@ end
 --{{{ Document Generation Functions
 function meta.compile(self, mode)
     if mode == "document" or not mode then
-        local command = string.format("%s %s", self.engine, self.file_list.main_file)
+        local command = string.format("%s %s %s", self.engine.exe, self.engine.args, self.file_list.main_file)
         if not self.settings.raw_output then
-            latex.parse_output(stdout)
             local status, code, stdout, stderr = pl.utils.executeex(command)
+            latex.parse_output(stdout)
         else
             os.execute(command)
         end
@@ -416,16 +502,30 @@ end
 --{{{ Content Generation Functions
 --{{{ get main content
 function meta.get_main_content(self, options)
+    local classline = self:get_classline()
     return string.format([[
-\documentclass{scrartcl}
+%s
 
-\usepackage{files/%s}
+\usepackage{%s/%s}
 
 \begin{document}
-\input{files/project_master}
+\input{%s/project_master}
 \end{document}
 ]],
-self.file_list.preamble_file)
+classline,
+self.directories.file_dir,
+self.file_list.preamble_file,
+self.directories.file_dir
+)
+end
+--}}}
+--{{{ get class line
+function meta.get_classline(self)
+    if self.class.options then
+        return string.format("\\documentclass[%s]{%s}", table.concat(self.class.options, ", "), self.class[1])
+    else
+        return string.format("\\documentclass{%s}", self.class[1])
+    end
 end
 --}}}
 --{{{ get_master_content
@@ -439,24 +539,46 @@ end
 --}}}
 --{{{ get_preamble_content
 function meta.get_preamble_content(self)
-    local content = {
-        "\\usepackage{fontspec}",
-        "\\setmainfont{Linux Libertine O}",
-        "\\usepackage{polyglossia}",
-        "\\setdefaultlanguage{german}",
-    }
-    for _, package in ipairs(self.packages) do
-        local packagename = package.name
-        local options = package.options
-        local packagestr
-        if options then
-            packagestr = string.format("\\usepackage[%s]{%s}", packagename, table.unpack(options, ", "))
-        else
-            packagestr = string.format("\\usepackage{%s}", packagename)
+    if self.engine.exe == "lualatex" then
+        local content = {
+            "\\usepackage{fontspec}",
+            "\\setmainfont{Linux Libertine O}",
+            "\\usepackage{polyglossia}",
+            "\\setdefaultlanguage{german}",
+        }
+        for _, package in ipairs(self.packages) do
+            local packagename = package.name
+            local options = package.options
+            local packagestr
+            if options then
+                packagestr = string.format("\\usepackage[%s]{%s}", table.concat(options, ", "), packagename)
+            else
+                packagestr = string.format("\\usepackage{%s}", packagename)
+            end
+            table.insert(content, packagestr)
         end
-        table.insert(content, packagestr)
+        return table.concat(content, "\n")
+    elseif self.engine.exe == "pdflatex" then
+        local content = {
+            "\\usepackage[utf8]{inputenc}",
+            "\\usepackage[ngerman]{babel}",
+        }
+        for _, package in ipairs(self.packages) do
+            local packagename = package.name
+            local options = package.options
+            local packagestr
+            if options then
+                packagestr = string.format("\\usepackage[%s]{%s}", packagename, table.unpack(options, ", "))
+            else
+                packagestr = string.format("\\usepackage{%s}", packagename)
+            end
+            table.insert(content, packagestr)
+        end
+        return table.concat(content, "\n")
+    else
+        print(string.format("sorry, engine '%s' is not supported (yet?)", self.engine.exe))
+        return "% unknown LaTeX engine"
     end
-    return table.concat(content, "\n")
 end
 --}}}
 --}}}
@@ -552,12 +674,6 @@ end
 function meta.insert_minimal(self, filename)
 
 end
---}}}
---{{{ Autocommands
--- the code typed typed the user should be logged and corrected/extended accordingly.
--- For example, if i used a tikzpicture environment and the tikz package is not yet loaded, the load code should we inserted automatically
--- For this, a big table with (ideally) all commands the user could type should be saved. Also it should be possible to add stuff to this table, for foreign
--- packages. By this, the database gets more and more accurat. In the end, maybe, one doesn't have to write the preamble by hand.
 --}}}
 
 setmetatable(M, meta)

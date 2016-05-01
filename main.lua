@@ -37,6 +37,10 @@ end
 if args.script == "" then
     args.script = nil
 end
+if args.tour then
+    print("sorry. the --tour option is currently not handled")
+    os.exit(0)
+end
 
 session:add_action_handler({
     command = "add",
@@ -57,7 +61,11 @@ session:add_action_handler({
 session:add_action_handler({
     command = "create",
     action = project_lib.create,
-    help_message = "create a project",
+    help_message = 
+[[create a project
+
+Arguments: project name (mandatory), documentclass (optionally, default 'article')
+]],
     save_data = "project_lib"
 })
 session:add_action_handler({
@@ -91,12 +99,19 @@ session:add_action_handler({
     use_data = "project_lib"
 })
 session:add_action_handler({
+    command = "show",
+    action = project_lib.show_preamble,
+    help_message = "show the preamble including the document class",
+    use_data = "project_lib"
+})
+session:add_action_handler({
     command = "set",
     action = {
         editor = project_lib.set_editor,
         engine = project_lib.set_latex_engine,
-        viewer = project_lib.set_viewer,
-        raw    = session_lib.bind(project_lib.generic_set, 2, "raw")
+        viewer = session_lib.bind(project_lib.generic_set, 2, "viewer"),
+        raw    = session_lib.bind(project_lib.generic_set, 2, "raw"),
+        class  = project_lib.set_class,
     },
     help_message = "latex settings",
     use_data = "project_lib"
@@ -119,8 +134,7 @@ Warning: There is no simple way to figure out the files created by the document,
 command deletes everything that is not on the auxiliary list. Again, use with care.
 
 Current implementation notice: this command as well as using the auxiliary list is not well tested.
-I wouldn't recommend using this command on something different as former empty directories.
-]],
+I wouldn't recommend using this command on something different as former empty directories.]],
     use_data = "project_lib"
 })
 session:add_action_handler({
