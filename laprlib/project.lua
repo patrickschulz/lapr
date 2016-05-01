@@ -574,7 +574,7 @@ function meta.get_preamble_content(self)
             local options = package.options
             local packagestr
             if options then
-                packagestr = string.format("\\usepackage[%s]{%s}", packagename, table.concat(options, ", "))
+                packagestr = string.format("\\usepackage[%s]{%s}", table.concat(options, ", "), packagename)
             else
                 packagestr = string.format("\\usepackage{%s}", packagename)
             end
