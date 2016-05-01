@@ -1,5 +1,6 @@
 return {
-    tikz = 
+    minimal = {
+        tikz = 
 [[\documentclass{article}
 \usepackage{tikz}
 
@@ -8,5 +9,12 @@ return {
 
     \end{tikzpicture}
 \end{document}
+]],
+    },
+    classes = {
+        scrartcl = 
+[[
+
 ]]
+    }
 }
