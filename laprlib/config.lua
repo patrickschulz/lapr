@@ -3,8 +3,7 @@ local path = require "pl.path"
 local userconfig = {
     datadir = os.getenv("HOME") .. "/.config/lapr/data",
     datafile = "packagelookup.lua",
-    --configdir = os.getenv("HOME") .. "/.config/lapr",
-    configdir = ".",
+    configdir = os.getenv("HOME") .. "/.config/lapr",
     configfile = "config.lua",
     templatefile = "templates.lua",
 }

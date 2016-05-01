@@ -154,7 +154,7 @@ function meta.load_config_file(self)
             self.temporary_file = conf.temporary_file
         end
     else
-        print("could not load user config file")
+        print("could not load user config file (perhaps you don't have one)")
     end
 end
 --}}}
@@ -166,7 +166,7 @@ function meta.load_minimal_templates(self)
         templates = templates()
         self.minimal_templates = templates
     else
-        print("could not load user templates file")
+        print("could not load user templates file (perhaps you don't have one)")
     end
 end
 --}}}
@@ -521,7 +521,7 @@ end
 --}}}
 --{{{ get class line
 function meta.get_classline(self)
-    if self.class.options then
+    if self.class.options and (#self.class.options ~= 0) then
         return string.format("\\documentclass[%s]{%s}", table.concat(self.class.options, ", "), self.class[1])
     else
         return string.format("\\documentclass{%s}", self.class[1])
