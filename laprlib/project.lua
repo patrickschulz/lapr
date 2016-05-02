@@ -334,6 +334,7 @@ function meta.load()
     end
     local self = pl.pretty.read(project_table)
     setmetatable(self, meta)
+    self:load_config_file()
     return self
 end
 --}}}
