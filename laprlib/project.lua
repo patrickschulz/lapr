@@ -1,3 +1,9 @@
+--[[
+This file belongs to the lapr project.
+
+This module provides the main project administration functionality.
+It will perhaps be split up in several other modules.
+--]]
 --{{{ Module loading
 local pl   = {}
 pl.file    = require "pl.file"
@@ -5,9 +11,11 @@ pl.path    = require "pl.path"
 pl.dir     = require "pl.dir"
 pl.tablex  = require "pl.tablex"
 pl.pretty  = require "pl.pretty"
+pl.list    = require "pl.List"
 pl.utils   = require "pl.utils"
 pl.stringx = require "pl.stringx"
 
+local iterate = pl.list.iterate
 local dp = pl.pretty.dump
 
 local latex    = require "laprlib.latex"
@@ -25,6 +33,8 @@ local meta = util.new_metatable("projectlib")
 -- load package database
 -- this loads both the system and the user database
 local packagelookup = packages.load()
+
+local valid_structure_types = { "part", "chapter", "section", "subsection", "subsubsection", "paragraph" }
 
 --{{{ Object Creation Functions
 --{{{ create a project
@@ -63,7 +73,21 @@ function M.create(name, class, file_list)
             minimal_dir = ".minimal",
         },
         last_active_file = nil,
-        temporary_file = ".difftempfile", -- TODO: choose better name
+        temporary_file = ".difftempfile",
+
+        structure = {
+            -- just for testing, this table should be empty
+            {
+                title = "introduction",
+                {
+                    title = "foo"
+                },
+                {
+                    title = "bar"
+                },
+            },
+            current = nil -- will point to the current structure element, like a part or a subsection
+        },
 
         project_name = name,
 
@@ -89,6 +113,8 @@ function M.create(name, class, file_list)
         },
     }
     setmetatable(self, meta)
+
+    self:scan_aux()
 
     self:load_config_file()
     self:load_minimal_templates()
@@ -170,6 +196,20 @@ function meta.load_minimal_templates(self)
     end
 end
 --}}}
+--{{{ scan aux
+function meta.scan_aux(self)
+    local t = {}
+    for root, dirs, files in pl.dir.walk(".") do
+        if #dirs ~= 0 then
+            if root == "." then
+                for dir in dirs:iter() do
+                    print(dir)
+                end
+            end
+        end
+    end
+end
+--}}}
 --}}}
 --{{{ settings
 function meta.set_class(self, class, ...)
@@ -215,11 +255,11 @@ function meta.generic_set(self, mode, ...)
 
     elseif mode == "viewer" then
         if not ... then
-            print(string.format("pdf viewer = %s", self.viewer))
+            util.printf("pdf viewer = %s", self.viewer)
         end
     elseif mode == "raw" then
         if not ... then
-            print(string.format("raw_output = %s", self.settings.raw_output))
+            util.printf("raw_output = %s", self.settings.raw_output)
         else
             self.settings.raw_output = (... == "true") or false
         end
@@ -277,28 +317,28 @@ function meta.info(self, mode)
     local indent = "  "
     print("Project Information:")
     print("---------------------------")
-    print(string.format("project name:  %s", self.project_name))
-    print(string.format("main file:     %s", self.file_list.main_file))
-    print(string.format("preamble file: %s", self.file_list.preamble_file))
+    util.printf("project name:  %s", self.project_name)
+    util.printf("main file:     %s", self.file_list.main_file)
+    util.printf("preamble file: %s", self.file_list.preamble_file)
     print("content files:")
     for _, file in ipairs(self.file_list) do
-        print(string.format(" -> %s", file))
+        util.printf(" -> %s", file)
     end
-    print(string.format("engine: %s", self.engine.exe))
-    print(string.format("viewer: %s", self.viewer))
+    util.printf("engine: %s", self.engine.exe)
+    util.printf("viewer: %s", self.viewer)
 end
 --}}}
 --{{{ show preamble
 function meta.show_preamble(self)
     local classline = self:get_classline()
     local preamble = self:get_preamble_content()
-    print(string.format("%s\n\n%s\n", classline, preamble))
+    util.printf("%s\n\n%s\n", classline, preamble)
 end
 --}}}
 --{{{ list packages
 function meta.list_packages(self)
     for _, package in ipairs(self.packages) do
-        print(string.format("%s [%s]", package.name, table.concat(package.options, ", ")))
+        util.printf("%s [%s]", package.name, table.concat(package.options, ", "))
     end
 end
 --}}}
@@ -371,6 +411,9 @@ function meta.add_aux_file(self, filename)
     else
         table.insert(self.aux_files, filename)
     end
+end
+function meta.list_aux_files(self)
+    dp(self.aux_files)
 end
 --}}}
 --{{{ Editing Functions
@@ -469,6 +512,45 @@ end
 --{{{ Structuring Functions
 --{{{ list structure
 function meta.list_structure(self)
+    local indent = ""
+    for partnum, part in ipairs(self.structure) do
+        util.printf("%spart %d: %s", indent, partnum, part.title)
+        for chapternum, chapter in ipairs(part) do
+            local indent = " "
+            util.printf("%schapter %d: %s", indent, chapternum, chapter.title)
+            for sectionnum, section in ipairs(chapter) do
+                local indent = "  "
+                util.printf("%ssection %d: %s", indent, sectionnum, section.title)
+                for subsectionnum, subsection in ipairs(section) do
+                    local indent = "   "
+                    util.printf("%ssubsection %d: %s", indent, subsectionnum, subsection.title)
+                    for subsubsectionnum, subsubsection in ipairs(subsection) do
+                        local indent = "    "
+                        util.printf("%ssubsubsection %d: %s", indent, subsubsectionnum, subsubsection.title)
+                        for paragraphnum, paragraph in ipairs(subsubsection) do
+                            local indent = "     "
+                            util.printf("%sparagraph %d: %s", indent, paragraphnum, paragraph.title)
+
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+--}}}
+--{{{ add structure element
+function meta.add_structure_element(self, structure, title, index)
+    if not pl.tablex.find(valid_structure_types, structure) then
+        util.printf("trying to add unknown structure '%s'", structure)
+    else
+        local level = self:get_structure_level(structure)
+    end
+end
+--}}}
+--{{{ get structure level
+function meta.get_structure_level(self, structure)
+    return pl.tablex.find(valid_structure_types, structure)
 end
 --}}}
 --}}}
@@ -583,7 +665,7 @@ function meta.get_preamble_content(self)
         end
         return table.concat(content, "\n")
     else
-        print(string.format("sorry, engine '%s' is not supported (yet?)", self.engine.exe))
+        util.printf("sorry, engine '%s' is not supported (yet?)", self.engine.exe)
         return "% unknown LaTeX engine"
     end
 end
@@ -609,12 +691,12 @@ function meta.clean_up(self)
             -- - it can be an auxiliary which should not be (re-)moved
             if not self:is_allowed_file(pl.path.basename(file)) then
                 if self.settings.debug then
-                    print(string.format("%s is not allowed and will be removed", file))
+                    util.printf("%s is not allowed and will be removed", file)
                 end
                 pl.file.delete(file)
             else
                 if self.settings.debug then
-                    print(string.format("%s is allowed", file))
+                    util.printf("%s is allowed", file)
                 end
             end
         end
@@ -625,20 +707,21 @@ end
 function meta.purge(self) -- use with care
     -- this function removes all files created by the project
     -- this includes both files created by this tool and files created by LaTeX
-    local files = pl.dir.getfiles(".")
-    for _, file in ipairs(files) do
-        if not (util.is_hidden(file) and self.settings.ignore_hidden) then
-            -- check if file is 'allowed':
-            -- - it can be part of the project
-            -- - it can be an auxiliary which should not be (re-)moved
-            if not self:is_allowed_file(pl.path.basename(file)) then
-                if self.settings.debug then
-                    print(string.format("%s is not allowed and will be removed", file))
-                end
-                --pl.file.delete(file)
-            else
-                if self.settings.debug then
-                    print(string.format("%s is allowed", file))
+    for root, dirs, files in pl.dir.walk(".") do
+        for file in iterate(files) do
+            if not (util.is_hidden(file) and self.settings.ignore_hidden) then
+                -- check if file is 'allowed':
+                -- - it can be part of the project
+                -- - it can be an auxiliary which should not be (re-)moved
+                if not self:is_allowed_file(pl.path.basename(file)) then
+                    if self.settings.debug then
+                        util.printf("%s is not allowed and will be removed", file)
+                    end
+                    --pl.file.delete(file)
+                else
+                    if self.settings.debug then
+                        util.printf("%s is allowed", file)
+                    end
                 end
             end
         end

@@ -1,3 +1,8 @@
+--[[
+This file belongs to the lapr project.
+
+This module handles the shell-like interface used by the user.
+--]]
 --{{{ Module loading
 local util = require "laprlib.util"
 --local rl = require "readline"
@@ -543,7 +548,7 @@ function meta.execute_command(self, command, args)
         local result = self:call_handler(func, final_args)
         self:save_data(command, result)
 
-        self:execute_hook("after", command, args)
+        self:execute_hook("after", command, final_args)
     end
 end
 --}}}

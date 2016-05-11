@@ -99,6 +99,12 @@ session:add_action_handler({
     use_data = "project_lib"
 })
 session:add_action_handler({
+    command = "aux",
+    action = project_lib.list_aux_files,
+    help_message = "list all auxiliary files",
+    use_data = "project_lib"
+})
+session:add_action_handler({
     command = "show",
     action = {
         preamble = project_lib.show_preamble,
@@ -117,6 +123,15 @@ session:add_action_handler({
         class  = project_lib.set_class,
     },
     help_message = "latex settings",
+    use_data = "project_lib"
+})
+session:add_action_handler({
+    command = "structure",
+    action = {
+        list = project_lib.list_structure,
+        add = project_lib.add_structure,
+    },
+    help_message = "structure commands",
     use_data = "project_lib"
 })
 session:add_action_handler({
@@ -152,8 +167,12 @@ session:add_action_handler({
     help_message = "load project",
     save_data = "project_lib"
 })
-session:add_hook(function(sessionobj, args) 
-    sessionobj:set_prompt(string.format("%s: %%l > ", args[1])) 
+session:add_hook(function(sessionobj, ...) 
+    --[[
+    if args then
+        sessionobj:set_prompt(string.format("%s: %%l > ", args[1])) 
+    end
+    --]]
 end, 
 "after", "create")
 if args.save then

@@ -1,3 +1,9 @@
+--[[
+This file belongs to the lapr project.
+
+It provides a debug interface for all other modules.
+--]]
+
 local M = {}
 
 local debug = false

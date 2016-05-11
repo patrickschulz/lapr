@@ -1,3 +1,9 @@
+--[[
+This file belongs to the lapr project.
+
+This module is concerned with parsing the logfile and pretty printing of warnings and messages.
+--]]
+
 local M = {}
 
 local pl = {}

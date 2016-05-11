@@ -1,10 +1,19 @@
+--[[
+This file belongs to the lapr project.
+
+General utility for all modules.
+--]]
 local M = {}
 
 local pl = {}
 pl.file = require "pl.file"
 pl.path = require "pl.path"
+pl.pretty = require "pl.pretty"
 
 --{{{ new metatable
+-- creates a table and sets it as its own metatable
+-- also, prevents from overwriting by setting the metatable field
+-- provides a 'tostring' method for easiert debugging and printing
 function M.new_metatable(mode)
     local meta = {}
     meta.__index = meta
@@ -32,6 +41,11 @@ function M.debug_print(object, indent)
     else
         io.write(string.format("%s%s,\n", string.rep(" ", 4 * (indent + 1)), tostring(object)))
     end
+end
+--}}}
+--{{{ debug table
+function M.debug_table(t)
+    pl.pretty.dump(t)
 end
 --}}}
 --{{{ write file with extension
@@ -69,6 +83,11 @@ function M.ask_user(prompt)
     io.stdout:write(prompt)
     local line = io.stdin:read()
     return line
+end
+--}}}
+--{{{ formatted printing -- printf
+function M.printf(format, ...)
+    print(string.format(format, ...))
 end
 --}}}
 

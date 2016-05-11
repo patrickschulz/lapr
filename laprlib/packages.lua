@@ -1,3 +1,8 @@
+--[[
+This file belongs to the lapr project.
+
+This module manages the loading, administration and saving of the package database.
+--]]
 local pl = {}
 pl.pretty = require "pl.pretty"
 pl.tablex = require "pl.tablex"

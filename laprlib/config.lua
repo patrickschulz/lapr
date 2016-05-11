@@ -1,3 +1,10 @@
+--[[
+This file belongs to the lapr project.
+
+It provides configuration and data paths for the system and the user files.
+Additionally, there are functions for easy access of these paths
+--]]
+
 local path = require "pl.path"
 
 local userconfig = {
