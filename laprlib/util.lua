@@ -90,6 +90,46 @@ function M.printf(format, ...)
     print(string.format(format, ...))
 end
 --}}}
+--{{{ protected printing -- printq
+function M.printq(str)
+    print(string.format("%q", str))
+end
+--}}}
+--{{{ bind
+--TODO: make this handle all number of arguments by using load()
+function M.bind(func, arg, value)
+    if arg == 1 then
+        return function(...) func(value, ...) end
+    elseif arg == 2 then
+        return function(a1, ...) func(a1, value, ...) end
+    elseif arg == 3 then
+        return function(a1, a2, ...) func(a1, a2, value, ...) end
+    elseif arg == 4 then
+        return function(a1, a2, a3, ...) func(a1, a2, a3, value, ...) end
+    elseif arg == 5 then
+        return function(a1, a2, a3, a4, ...) func(a1, a2, a3, a4, value, ...) end
+    elseif arg == 6 then
+        return function(a1, a2, a3, a4, a5, ...) func(a1, a2, a3, a4, a5, value, ...) end
+    elseif arg == 7 then
+        return function(a1, a2, a3, a4, a5, a6, ...) func(a1, a2, a3, a4, a5, a6, value, ...) end
+    elseif arg == 8 then
+        return function(a1, a2, a3, a4, a5, a6, a7, ...) func(a1, a2, a3, a4, a5, a6, a7, value, ...) end
+    elseif arg == 9 then
+        return function(a1, a2, a3, a4, a5, a6, a7, a8, ...) func(a1, a2, a3, a4, a5, a6, a7, a8, value, ...) end
+    else
+    end
+end
+--}}}
+--{{{ counter
+function M.counter(start, increment)
+    local start = start or 1
+    local increment = increment or 1
+    return function()
+        start = start + increment
+        return start
+    end
+end
+--}}}
 
 return M
 

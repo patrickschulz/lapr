@@ -30,7 +30,6 @@
     center = "latex",
     tikzpicture = "tikz",
     axis = "pgfplots",
-    bar = "latex",
     semilogxaxis = "pgfplots",
     loglogaxis = "pgfplots",
     gather = "amsmath",

@@ -110,31 +110,6 @@ end
 M.default_action_handlers = "default_action_handlers"
 M.minimal = "minimal"
 --}}}
---{{{ handler utitility functions
---TODO: make this handle all number of arguments by using load()
-function M.bind(func, arg, value)
-    if arg == 1 then
-        return function(...) func(value, ...) end
-    elseif arg == 2 then
-        return function(a1, ...) func(a1, value, ...) end
-    elseif arg == 3 then
-        return function(a1, a2, ...) func(a1, a2, value, ...) end
-    elseif arg == 4 then
-        return function(a1, a2, a3, ...) func(a1, a2, a3, value, ...) end
-    elseif arg == 5 then
-        return function(a1, a2, a3, a4, ...) func(a1, a2, a3, a4, value, ...) end
-    elseif arg == 6 then
-        return function(a1, a2, a3, a4, a5, ...) func(a1, a2, a3, a4, a5, value, ...) end
-    elseif arg == 7 then
-        return function(a1, a2, a3, a4, a5, a6, ...) func(a1, a2, a3, a4, a5, a6, value, ...) end
-    elseif arg == 8 then
-        return function(a1, a2, a3, a4, a5, a6, a7, ...) func(a1, a2, a3, a4, a5, a6, a7, value, ...) end
-    elseif arg == 9 then
-        return function(a1, a2, a3, a4, a5, a6, a7, a8, ...) func(a1, a2, a3, a4, a5, a6, a7, a8, value, ...) end
-    else
-    end
-end
---}}}
 --{{{ Settings
 --{{{ generic set function
 function meta.set(self, mode, ...)
@@ -350,8 +325,13 @@ function meta.add_action_handler(self, command, action, help_message, override, 
         return self:raise_or_return_error("handler has no valid command")
     end
     if not new_handler.action then
-        self:raise_or_return_error(string.format("handler '%s' has no valid action", new_handler.command))
+        return self:raise_or_return_error(string.format("handler '%s' has no valid action", new_handler.command))
     end
+    --[[
+    --TODO: i wanted to detect missing handlers, but this is not possible using the current approach of adding super commands
+    if type(new_handler.action) == "table" then
+    end
+    --]]
 
     -- install handler (if possible)
     if self.functiontable[new_handler.command] and not new_handler.override then

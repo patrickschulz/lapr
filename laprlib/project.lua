@@ -18,11 +18,12 @@ pl.stringx = require "pl.stringx"
 local iterate = pl.list.iterate
 local dp = pl.pretty.dump
 
-local latex    = require "laprlib.latex"
-local util     = require "laprlib.util"
-local packages = require "laprlib.packages"
-local config   = require "laprlib.config"
-local debug    = require "laprlib.debug"
+local latex     = require "laprlib.latex"
+local util      = require "laprlib.util"
+local packages  = require "laprlib.packages"
+local config    = require "laprlib.config"
+local debug     = require "laprlib.debug"
+local structlib = require "laprlib.structure"
 --}}}
 
 local M = {}
@@ -33,8 +34,6 @@ local meta = util.new_metatable("projectlib")
 -- load package database
 -- this loads both the system and the user database
 local packagelookup = packages.load()
-
-local valid_structure_types = { "part", "chapter", "section", "subsection", "subsubsection", "paragraph" }
 
 --{{{ Object Creation Functions
 --{{{ create a project
@@ -75,19 +74,7 @@ function M.create(name, class, file_list)
         last_active_file = nil,
         temporary_file = ".difftempfile",
 
-        structure = {
-            -- just for testing, this table should be empty
-            {
-                title = "introduction",
-                {
-                    title = "foo"
-                },
-                {
-                    title = "bar"
-                },
-            },
-            current = nil -- will point to the current structure element, like a part or a subsection
-        },
+        structure = structlib.create(),
 
         project_name = name,
 
@@ -203,7 +190,7 @@ function meta.scan_aux(self)
         if #dirs ~= 0 then
             if root == "." then
                 for dir in dirs:iter() do
-                    print(dir)
+                    --print(dir)
                 end
             end
         end
@@ -509,51 +496,6 @@ function meta.add_package(self, package, options)
 end
 --}}}
 --}}}
---{{{ Structuring Functions
---{{{ list structure
-function meta.list_structure(self)
-    local indent = ""
-    for partnum, part in ipairs(self.structure) do
-        util.printf("%spart %d: %s", indent, partnum, part.title)
-        for chapternum, chapter in ipairs(part) do
-            local indent = " "
-            util.printf("%schapter %d: %s", indent, chapternum, chapter.title)
-            for sectionnum, section in ipairs(chapter) do
-                local indent = "  "
-                util.printf("%ssection %d: %s", indent, sectionnum, section.title)
-                for subsectionnum, subsection in ipairs(section) do
-                    local indent = "   "
-                    util.printf("%ssubsection %d: %s", indent, subsectionnum, subsection.title)
-                    for subsubsectionnum, subsubsection in ipairs(subsection) do
-                        local indent = "    "
-                        util.printf("%ssubsubsection %d: %s", indent, subsubsectionnum, subsubsection.title)
-                        for paragraphnum, paragraph in ipairs(subsubsection) do
-                            local indent = "     "
-                            util.printf("%sparagraph %d: %s", indent, paragraphnum, paragraph.title)
-
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
---}}}
---{{{ add structure element
-function meta.add_structure_element(self, structure, title, index)
-    if not pl.tablex.find(valid_structure_types, structure) then
-        util.printf("trying to add unknown structure '%s'", structure)
-    else
-        local level = self:get_structure_level(structure)
-    end
-end
---}}}
---{{{ get structure level
-function meta.get_structure_level(self, structure)
-    return pl.tablex.find(valid_structure_types, structure)
-end
---}}}
---}}}
 --{{{ Document Generation Functions
 function meta.compile(self, mode)
     if mode == "document" or not mode then
@@ -564,6 +506,8 @@ function meta.compile(self, mode)
         else
             os.execute(command)
         end
+    elseif mode == "single" then
+
     elseif mode == "bibtex" then
 
     end
@@ -763,6 +707,14 @@ end
 
 function meta.insert_minimal(self, filename)
 
+end
+--}}}
+--{{{ Structure functions
+function meta.list_structure(self)
+    self.structure:list()
+end
+function meta.define_structure(self)
+    self.structure:define()
 end
 --}}}
 

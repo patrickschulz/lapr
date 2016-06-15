@@ -107,8 +107,7 @@ session:add_action_handler({
 session:add_action_handler({
     command = "show",
     action = {
-        preamble = project_lib.show_preamble,
-        structure = project_lib.show_structure,
+        preamble = project_lib.show_preamble
     },
     help_message = "show is a super command. List of subcommands:\n  preamble: show the preamble including the document class\n  structure: show the document structure (parts, chapters, section, etc.)",
     use_data = "project_lib"
@@ -118,8 +117,8 @@ session:add_action_handler({
     action = {
         editor = project_lib.set_editor,
         engine = project_lib.set_latex_engine,
-        viewer = session_lib.bind(project_lib.generic_set, 2, "viewer"),
-        raw    = session_lib.bind(project_lib.generic_set, 2, "raw"),
+        viewer = util.bind(project_lib.generic_set, 2, "viewer"),
+        raw    = util.bind(project_lib.generic_set, 2, "raw"),
         class  = project_lib.set_class,
     },
     help_message = "latex settings",
@@ -129,7 +128,7 @@ session:add_action_handler({
     command = "structure",
     action = {
         list = project_lib.list_structure,
-        add = project_lib.add_structure,
+        define = project_lib.define_structure,
     },
     help_message = "structure commands",
     use_data = "project_lib"
