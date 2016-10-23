@@ -532,7 +532,7 @@ function meta.edit_structure_element(self, pattern)
         self:compare_and_insert_missing_packages(packagelist)
     end
 end
-function meta.show_structure_content(self)
+function meta.show_structure(self)
     io.write(self.structure:get_full_content())
 end
 --}}}

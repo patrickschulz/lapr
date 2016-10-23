@@ -215,7 +215,7 @@ end
 --{{{ Getter for functiontable
 --{{{ get function
 function meta.get_function(self, command, args)
-    local func = self.functiontable:get_action(command):get_function()
+    local func = self.functiontable:get_function(command)
     if not func then
         if self.aliases[command] then
             return self:get_function(self.aliases[command], args)
@@ -252,17 +252,17 @@ end
 --}}}
 --{{{ get save_data
 function meta.get_save_data(self, command)
-    return self.functiontable:get_action(command):get_save_data()
+    return self.functiontable:get_save_data(command)
 end
 --}}}
 --{{{ get collect_arguments
 function meta.get_collect_arguments(self, command)
-    return self.functiontable:get_action(command):get_collect()
+    return self.functiontable:get_collect(command)
 end
 --}}}
 --{{{ get help message
 function meta.get_help_message(self, command)
-    local help_message = self.functiontable:get_action(command):get_help_message()
+    local help_message = self.functiontable:get_help_message(command)
     if help_message then 
         if type(help_message) == "table" then
             return table.concat(help_message, "\n")
@@ -270,7 +270,7 @@ function meta.get_help_message(self, command)
             return help_message
         end
     else
-        if self.functiontable:get_action(command):get_function() then
+        if self.functiontable:get_function(command) then
             return "no help message"
         else
             return string.format("command '%s' unknown", command)
@@ -583,7 +583,7 @@ function meta.combine_arguments(self, command, args)
     end
     -- the arguments of the function can be given sequentially or packed in a table
     -- use 'collect_arguments' to change behaviour (collect -> packed)
-    if self.functiontable:get_action(command):get_collect() then
+    if self.functiontable:get_collect(command) then
         table.insert(args_combined, args)
     else
         for i = 1, #args do
@@ -628,7 +628,7 @@ end
 --}}}
 --{{{ is supercommand
 function meta.is_supercommand(self, command)
-    return pl.utils.is_type(self.functiontable:get_action(command):get_function(), "table")
+    return pl.utils.is_type(self.functiontable:get_function(command), "table")
 end
 --}}}
 --}}}
@@ -717,7 +717,7 @@ end
 --}}}
 --{{{ get options map
 function meta.get_options_map(self, command)
-    return self.functiontable:get_action(command):get_options()
+    return self.functiontable:get_options(command)
 end
 --}}}
 --{{{ is option
