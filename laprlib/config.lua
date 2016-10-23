@@ -16,9 +16,11 @@ local userconfig = {
 }
 
 local systemconfig = {
-    datadir = "/usr/share/lua/5.3/lapr/data",
+    --datadir = "/usr/share/lua/5.3/lapr/data",
+    datadir = ".",
     datafile = "packagelookup.lua",
-    configdir = "/usr/share/lua/5.3/lapr/config",
+    --configdir = "/usr/share/lua/5.3/lapr/config",
+    configdir = ".",
     configfile = "config.lua",
 }
 

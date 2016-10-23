@@ -26,7 +26,7 @@ function M.create(str)
 
         self.matches:append(match)
 
-        if oldstart > str:len() then
+        if oldstart > str:len() and str:sub(str:len()) == ":" then
             self.matches:append("")
         end
     until oldstart > str:len()
@@ -49,8 +49,20 @@ function meta.copy(sp)
     return pl.tablex.deepcopy(sp)
 end
 
+function meta.number(self)
+    return self.matches:len()
+end
+
 function meta.string_representation(sp)
     return table.concat(sp.matches, ":")
+end
+
+function meta.ensure_pattern(self, pattern)
+    local pattern = pattern or ""
+    if self:number() < 1 then
+        print("fixing pattern")
+        self.matches:append(pattern)
+    end
 end
 
 return M

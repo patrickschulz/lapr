@@ -79,18 +79,24 @@ end
 -- nodes
 --{{{ find
 local function find(node, searchpattern, list, index)
-    local match = check_match_ignore_case(node.value, searchpattern:get_prefix())
+    local match = check_match_ignore_case(node.value.title, searchpattern:get_prefix())
     if match then -- current node matches current search pattern
         local entry = create_entry(index)
-        --list:append(index) -- save index
         if not node:is_leaf() then 
             searchpattern:strip_prefix() -- advance current search pattern, since we are going one level deeper
-            local sublist = pl.list()
-            for i, child in ipairs(node.children) do
-                child:find(searchpattern:copy(), sublist, i)
+            -- for later, when i will have forgotten about this:
+            -- with the current implementation, the nodes are only matches up to the level where the pattern is defined
+            -- deeper levels are ignored. My initial idea was to gather all nodes which are children of the last node found.
+            -- for this, the searchpattern has to be extendend, which can be done in a way like this:
+            --searchpattern:ensure_pattern()
+            -- this adds a empty pattern (matches every node), if there are no more pattern levels
+            if searchpattern:number() > 0 then
+                local sublist = pl.list()
+                for i, child in ipairs(node.children) do
+                    child:find(searchpattern:copy(), sublist, i)
+                end
+                entry.sublist = sublist
             end
-            entry.sublist = sublist
-            --list:append(sublist)
         end
         list:append(entry)
     end
@@ -121,7 +127,12 @@ local function node(value, ...)
         append_child = function(self, leaf)
             self.children:append(leaf)
         end,
-        find = find
+        find = find,
+        
+        -- metamathods
+        __tostring = function(node)
+            return string.format("node{ %s }", tostring(node.value))
+        end
     }
     meta.__index = meta
 
@@ -142,6 +153,21 @@ function M.create()
     setmetatable(self, treemeta)
 
     return self
+end
+--}}}
+--{{{ get node
+function treemeta.get_node(self, path)
+    local path = path or { }
+    local current_node = self.root
+    while true do
+        local idx = table.remove(path, 1)
+        if not idx then
+            break
+        end
+
+        current_node = current_node.children[idx]
+    end
+    return current_node
 end
 --}}}
 --{{{ append entry
@@ -169,7 +195,7 @@ local function extract_max(list)
         return nil
     else
         local index = lengths:index(max)
-        return max, linlist[index]
+        return linlist[index]
     end
 end
 --}}}
@@ -179,29 +205,29 @@ function treemeta.find(self, searchpattern)
     for i, child in ipairs(self.root.children) do
         find(child, searchpattern:copy(), list, i)
     end
-    local max, path = extract_max(list)
-    if max then
+    local path = extract_max(list)
+    if path then
+        local node = self:get_node(path)
+        return node.value
     else
-        util.printf("ambigious pattern '%s'", searchpattern:string_representation())
+        return nil, string.format("ambigious searchpattern '%s'", searchpattern:string_representation())
     end
-
-    return path
 end
 --}}}
 --{{{ walk the tree
-local function walk(node, func, level)
+local function walk(node, func, level, ...)
     if not node:is_root() then 
-        func(node.value, level)
+        func(node.value, level, ...)
     end
     if node:is_node() then
         for child in node.children:iterate() do
-            walk(child, func, level + 1)
+            walk(child, func, level + 1, ...)
         end
     end
 end
 
-function treemeta.walk(self, func)
-    walk(self.root, func, 0)
+function treemeta.walk(self, func, ...)
+    walk(self.root, func, 0, ...)
 end
 --}}}
 

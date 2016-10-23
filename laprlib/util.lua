@@ -10,6 +10,21 @@ pl.file = require "pl.file"
 pl.path = require "pl.path"
 pl.pretty = require "pl.pretty"
 
+--{{{ formatted printing -- printf
+function M.printf(format, ...)
+    print(string.format(format, ...))
+end
+--}}}
+--{{{ protected printing -- printq
+function M.printq(str)
+    print(string.format("%q", str))
+end
+--}}}
+--{{{ print message
+function M.print_message(msg, number)
+    print(string.format("%d: %s", number, msg))
+end
+--}}}
 --{{{ new metatable
 -- creates a table and sets it as its own metatable
 -- also, prevents from overwriting by setting the metatable field
@@ -18,7 +33,9 @@ function M.new_metatable(mode)
     local meta = {}
     meta.__index = meta
     meta.__metatable = mode
-    meta.__tostring = function(self) return mode .. "_object" end
+    if mode then
+        meta.__tostring = function(self) return mode .. "_object" end
+    end
     return meta
 end
 --}}}
@@ -85,14 +102,33 @@ function M.ask_user(prompt)
     return line
 end
 --}}}
---{{{ formatted printing -- printf
-function M.printf(format, ...)
-    print(string.format(format, ...))
+--{{{ aks confirmation
+function M.confirm_decline(prompt, mode)
+    local answer = ""
+    repeat
+        io.stdout:write(prompt .. " [y/n]")
+        answer = io.stdin:read()
+    until answer == "y" or answer == "n"
+    if answer == "y" then
+        return true
+    else
+        return false
+    end
 end
 --}}}
---{{{ protected printing -- printq
-function M.printq(str)
-    print(string.format("%q", str))
+--{{{ ask user
+function M.choose_option(prompt, options)
+    print(prompt)
+    print("What do you want to do?")
+    for i, option in ipairs(options) do
+        M.printf("%i %s", i, option)
+    end
+    local num
+    repeat 
+        io.write("option: ")
+        num = io.stdin:read("n")
+    until num
+    return options[num]
 end
 --}}}
 --{{{ bind
@@ -128,6 +164,12 @@ function M.counter(start, increment)
         start = start + increment
         return start
     end
+end
+--}}}
+--{{{ execute command
+function M.execute_command(command, options)
+    local commandline = string.format("%s %s", command, options)
+    os.execute(commandline)
 end
 --}}}
 

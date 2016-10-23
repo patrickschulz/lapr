@@ -6,7 +6,7 @@ return {
 
     settings = {
         --ignore_hidden = false, -- used for deletion of files
-        raw_output = false, -- parse LaTeX output (false) or display LaTeX output plain (true)
+        raw_output = true, -- parse LaTeX output (false) or display LaTeX output plain (true)
         --debug = false,
     },
 

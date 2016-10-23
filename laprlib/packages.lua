@@ -18,6 +18,8 @@ local M = {}
 local meta = util.new_metatable("packageslib")
 meta.__gc = function(self) self:save() end
 
+local packagelookup = nil
+
 local function internal_load(filename, mode)
     local package_table = pl.file.read(filename)
     local database = { commands = {}, environments = {} }
@@ -55,28 +57,31 @@ local function get_new_packages_representation(database)
 end
 
 function M.load()
-    -- system
-    local filename = config.get_system_database_name()
-    local system_database = { commands = {}, environments = {} }
-    if type(filename) == "table" then
-        for _, fname in ipairs(filename) do
-            local temp = internal_load(fname, "system")
-            local commands = pl.tablex.merge(system_database.commands, temp.commands, true)
-            local environments = pl.tablex.merge(system_database.environments, temp.environments, true)
-            system_database.commands = commands
-            system_database.environments = environments
+    if not packagelookup then
+        -- system
+        local filename = config.get_system_database_name()
+        local system_database = { commands = {}, environments = {} }
+        if type(filename) == "table" then
+            for _, fname in ipairs(filename) do
+                local temp = internal_load(fname, "system")
+                local commands = pl.tablex.merge(system_database.commands, temp.commands, true)
+                local environments = pl.tablex.merge(system_database.environments, temp.environments, true)
+                system_database.commands = commands
+                system_database.environments = environments
+            end
+        else
+            system_database = internal_load(filename, "system")
         end
-    else
-        system_database = internal_load(filename, "system")
-    end
-    -- user
-    filename = config.get_user_database_name()
-    local user_database = internal_load(filename, "user")
+        -- user
+        filename = config.get_user_database_name()
+        local user_database = internal_load(filename, "user")
 
-    -- merge both tables
-    local commands = pl.tablex.merge(system_database.commands, user_database.commands, true)
-    local environments = pl.tablex.merge(system_database.environments, user_database.environments, true)
-    return setmetatable({ commands = commands, environments = environments }, meta)
+        -- merge both tables
+        local commands = pl.tablex.merge(system_database.commands, user_database.commands, true)
+        local environments = pl.tablex.merge(system_database.environments, user_database.environments, true)
+        packagelookup = setmetatable({ commands = commands, environments = environments }, meta)
+    end
+    return packagelookup
 end
 
 function meta.is_command(self, command)

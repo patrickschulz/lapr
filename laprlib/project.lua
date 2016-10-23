@@ -18,12 +18,14 @@ pl.stringx = require "pl.stringx"
 local iterate = pl.list.iterate
 local dp = pl.pretty.dump
 
-local latex     = require "laprlib.latex"
-local util      = require "laprlib.util"
-local packages  = require "laprlib.packages"
-local config    = require "laprlib.config"
-local debug     = require "laprlib.debug"
-local structlib = require "laprlib.structure"
+local latex         = require "laprlib.latex"
+local util          = require "laprlib.util"
+local packages      = require "laprlib.packages"
+local config        = require "laprlib.config"
+local debug         = require "laprlib.debug"
+local structlib     = require "laprlib.structure"
+local codegenerator = require "laprlib.codegenerator"
+local editor        = require "laprlib.editor"
 --}}}
 
 local M = {}
@@ -34,6 +36,21 @@ local meta = util.new_metatable("projectlib")
 -- load package database
 -- this loads both the system and the user database
 local packagelookup = packages.load()
+
+local known_classes = pl.tablex.makeset{
+    -- standard classes
+    "article",
+    "report",
+    "book",
+    -- KOMA script
+    "scrartcl",
+    "scrreprt",
+    "scrbook",
+    -- misc
+    "IEEEtran",
+    "minimal",
+    "standalone"
+}
 
 --{{{ Object Creation Functions
 --{{{ create a project
@@ -53,40 +70,52 @@ function M.create(name, class, file_list)
     end
     -- arguments
     local file_list = file_list or {}
-    local class = class or "article"
+    if not class then
+        print("no documentclass given")
+        return
+    end
+    if not known_classes[class] then
+        local option = util.choose_option(string.format("the class '%s' is unknown.", class), { "abort", "fix", "ignore", "add to known classes" })
+        if option == "abort" then
+            return
+        elseif option == "fix" then
+            local class = read_class()
+        elseif option == "ignore" then
+            -- nothing to do
+        elseif option == "add to known classes" then
+            known_classes[class] = true
+        else -- shouldn't happen
+            error("this should not happen! wrong option returned. Report a bug")
+        end
+    end
 
     -- object
     local self = {
-        file_list = {
-            main_file = "main",
-            project_file = ".project",
-            preamble_file = "preamble",
-            table.unpack(file_list)
+        document = {
+            title = "Title",
+            subtitle = "Subtitle",
+            author = "Patrick Schulz",
+            date = "\\today"
         },
-        aux_files = { }, -- use this to save all present files while creating a project
-                         -- this list is used to move or delete all unwanted files
-        directories = { 
-            file_dir = "files",
-            image_dir = "images",
-            project_dir = ".build",
-            minimal_dir = ".minimal",
-        },
-        last_active_file = nil,
-        temporary_file = ".difftempfile",
 
         structure = structlib.create(),
 
         project_name = name,
 
         packages = {
-            --{ name = "kantlipsum" }
-            { name = "amsmath", options = { "sumlimits", "intlimits" } },
+            --{ name = "amsmath", options = { "sumlimits", "intlimits" } },
         },
-        class = { class, options = {} },
+        class = { class = class, options = {} },
+
+        custom_content = {
+            preamble = nil
+        },
 
         last_edits = nil,
 
         minimal_templates = nil,
+
+        aux_files = {},
 
         -- environment
         engine = { exe = "lualatex", args = "--interaction=nonstopmode" },
@@ -101,33 +130,13 @@ function M.create(name, class, file_list)
     }
     setmetatable(self, meta)
 
+    -- not yet implemented
     self:scan_aux()
 
     self:load_config_file()
     self:load_minimal_templates()
 
-    self:create_dirs_and_files()
-
     return self
-end
---}}}
---{{{ create standard directories and files
-function meta.create_dirs_and_files(self)
-    for _, dir in pairs(self.directories) do
-        pl.path.mkdir(dir)
-    end
-
-    -- create files
-    -- main file
-    local main_content = self:get_main_content()
-    util.write_tex_file(self.file_list.main_file, main_content)
-    
-    -- preamble
-    local preamble_content = self:get_preamble_content()
-    util.write_sty_file(self.file_list.preamble_file, preamble_content, self.directories.file_dir)
-
-    -- project master file (includes all other files)
-    self:write_master_file()
 end
 --}}}
 --{{{ load config file
@@ -176,34 +185,38 @@ function meta.load_minimal_templates(self)
     local filename = config.get_user_templates_filename()
     local templates = loadfile(filename)
     if templates then
-        templates = templates()
-        self.minimal_templates = templates
+        self.minimal_templates = templates()
     else
         print("could not load user templates file (perhaps you don't have one)")
     end
 end
 --}}}
---{{{ scan aux
+--{{{ scan auxiliary files
 function meta.scan_aux(self)
-    local t = {}
-    for root, dirs, files in pl.dir.walk(".") do
-        if #dirs ~= 0 then
-            if root == "." then
-                for dir in dirs:iter() do
-                    --print(dir)
-                end
-            end
-        end
-    end
+    -- get a list of all present file names
+    -- this list can later on be used to prevent files from being deleted
+    self.aux_files = pl.dir.getallfiles(".")
+end
+--}}}
+--{{{ read class
+function read_class()
+    local class = ""
+    repeat
+        io.write("class: ")
+        class = io.read()
+    until known_classes[class]
+    return class
 end
 --}}}
 --}}}
 --{{{ settings
 function meta.set_class(self, class, ...)
+    local options = { ... }
     if class then
-
+        self.class.class = class
+        self.class.options = options
     else
-        print(self.class)
+        util.printf("%s [%s]", self.class.class, table.concat(self.class.options, ", "))
     end
 end
 
@@ -215,7 +228,8 @@ function meta.set_editor(self, editor)
     end
 end
 
-function meta.set_latex_engine(self, engine)
+function meta.set_latex_engine(self, engine, ...)
+    local options = { ... }
     if engine then
         self.engine.exe = engine
     else
@@ -226,6 +240,7 @@ end
 function meta.set_viewer(self, viewer)
     self.viewer = viewer
 end
+
 function meta.reset(self, mode)
     if mode == "editor" then
         self.editor = "vim"
@@ -235,6 +250,7 @@ function meta.reset(self, mode)
         self.viewer = "zathura --fork"
     end
 end
+
 function meta.generic_set(self, mode, ...)
     if mode == "editor" then
 
@@ -262,41 +278,8 @@ end
 --{{{ Utility Functions
 --{{{ check existing project
 function meta.check_existing_project(filename)
-    return pl.path.exists(".project")
-end
---}}}
---{{{ get full file path
-function meta.get_full_file_path(self, filename)
-    -- search order:
-    -- 1. Main file
-    -- 2. Content files
-    if filename == self.file_list.main_file then
-        return filename .. ".tex"
-    elseif filename == self.file_list.preamble_file then
-        return self.directories.file_dir .. "/" .. filename .. ".sty"
-    else
-        for _, file in ipairs(self.file_list) do
-            if filename == file then
-                return self.directories.file_dir .. "/" .. file .. ".tex"
-            end
-        end
-    end
-end
---}}}
---{{{ get filename
-function meta.get_filename(self, filename)
-    if not (filename or self.last_active_file) then
-        return nil, "specify file to edit"
-    end
-    local filename = filename or self.last_active_file
-    if filename == "preamble" then
-        filename = self.file_list.preamble_file
-    end
-    filename = self:get_full_file_path(filename)
-    if not filename then
-        return nil, string.format("file not found in project")
-    end
-    return filename
+    local filename = filename or ".project"
+    return pl.path.exists(filename)
 end
 --}}}
 --{{{ info
@@ -305,27 +288,31 @@ function meta.info(self, mode)
     print("Project Information:")
     print("---------------------------")
     util.printf("project name:  %s", self.project_name)
-    util.printf("main file:     %s", self.file_list.main_file)
-    util.printf("preamble file: %s", self.file_list.preamble_file)
-    print("content files:")
-    for _, file in ipairs(self.file_list) do
-        util.printf(" -> %s", file)
-    end
     util.printf("engine: %s", self.engine.exe)
     util.printf("viewer: %s", self.viewer)
 end
 --}}}
 --{{{ show preamble
 function meta.show_preamble(self)
-    local classline = self:get_classline()
-    local preamble = self:get_preamble_content()
+    local classline = codegenerator.create_classline(self.class)
+    local preamble = codegenerator.create_preamble(self.engine.exe, self.packages, self.document, self.custom_content.preamble)
     util.printf("%s\n\n%s\n", classline, preamble)
+end
+--}}}
+--{{{ show full document
+function meta.show_full_document(self)
+    local content = codegenerator.create_document(self.class, self.engine.exe, self.packages, self.document, self.structure:get_full_content(), self.custom_content)
+    print(content)
 end
 --}}}
 --{{{ list packages
 function meta.list_packages(self)
     for _, package in ipairs(self.packages) do
-        util.printf("%s [%s]", package.name, table.concat(package.options, ", "))
+        if package.options then
+            util.printf("%s [%s]", package.name, table.concat(package.options, ", "))
+        else
+            util.printf("%s", package.name)
+        end
     end
 end
 --}}}
@@ -333,15 +320,17 @@ end
 function meta.compare_and_insert_missing_packages(self, packagelist)
     local used_packages = {}
     for _, package in ipairs(self.packages) do
-        table.insert(used_packages, package.name)
+        used_packages[package.name] = true
     end
-    local new_packages = pl.tablex.keys(pl.tablex.difference(pl.tablex.makeset(packagelist), pl.tablex.makeset(used_packages)))
+    local new_packages = pl.tablex.keys(pl.tablex.difference(pl.tablex.makeset(packagelist), used_packages))
     for _, package in ipairs(new_packages) do
         table.insert(self.packages, { name = package })
     end
-    -- update preamble
-    local preamble_content = self:get_preamble_content()
-    util.write_sty_file(self.file_list.preamble_file, preamble_content, self.directories.file_dir)
+end
+--}}}
+--{{{ add custom preamble
+function meta.add_custom_preamble(self, preamble)
+    self.custom_content.preamble = preamble
 end
 --}}}
 --}}}
@@ -371,135 +360,46 @@ function meta.adopt(main_file)
 end
 --}}}
 --}}}
---{{{ File Functions
-function meta.add_file(self, filename)
-    if not filename then
-        print("no filename given")
-        return
-    end
-    if type(filename) == "table" then
-        for _, fn in ipairs(filename) do
-            self:add_file(fn)
-        end
-    else
-        local content = string.format("%% %s.tex\n", filename)
-        util.write_tex_file(filename, content, self.directories.file_dir)
-        table.insert(self.file_list, filename)
-        self:write_master_file()
-        self.last_active_file = filename
-    end
-end
-
-function meta.add_aux_file(self, filename)
-    if type(filename) == "table" then
-        for _, fn in ipairs(filename) do
-            self:add_aux_file(fn)
-        end
-    else
-        table.insert(self.aux_files, filename)
-    end
-end
-function meta.list_aux_files(self)
-    dp(self.aux_files)
-end
---}}}
 --{{{ Editing Functions
---{{{ create temporary copy
-function meta.create_temporary_copy(self, filename)
-    local ret, msg = pl.dir.copyfile(filename, self.temporary_file, true)
-    if not ret then print(msg) end
-end
---}}}
---{{{ delete temporary copy
-function meta.delete_temporary_copy(self)
-    os.remove(self.temporary_file)
-end
---}}}
---{{{ get diff
-function meta.get_diff(self, filename)
-    local command = string.format("diff %s %s", filename, self.temporary_file)
-    local status, code, stdout, stderr = pl.utils.executeex(command)
-    return stdout
-end
---}}}
---{{{ extract commands from diff
-function meta.extract_commands_from_diff(self, diff)
-    local newlines = {}
-    for line in pl.stringx.lines(diff) do
-        if pl.stringx.startswith(line, "<") then
-            line = string.sub(line, 3)
-            table.insert(newlines, line)
-        end
-    end
-    return newlines
-end
---}}}
---{{{ parse latex commands
-function meta.parse_latex_commands(self, lines)
-    local packagelist = {}
-    for _, line in ipairs(lines) do
-        for command in string.gmatch(line, "\\(%a+)") do
-            local package
-            if packagelookup:is_command(command) then
-                package = packagelookup:get_package("commands", command)
-            else
-                package = packagelookup:ask_package("command", command)
-                packagelookup:insert_command(command, package)
-            end
-            if not packagelookup:is_latex_command(command) then
-                table.insert(packagelist, package)
-            end
-        end
-        for env in string.gmatch(line, "\\begin%{([^}]+)%}") do
-            local package
-            if packagelookup:is_environment(env) then
-                package = packagelookup:get_package("environments", env)
-            else
-                package = packagelookup:ask_package("environment", env)
-                packagelookup:insert_environment(env, package)
-            end
-            if not packagelookup:is_latex_environment(env) then
-                table.insert(packagelist, package)
-            end
-        end
-    end
-    return packagelist
+--{{{ edit titlepage
+function meta.edit_titlepage(self)
+    local tp = editor.edit(nil, "% titlepage")
 end
 --}}}
 --{{{ edit preamble
 function meta.edit_preamble(self)
-    self:edit_file(self.file_list.preamble_file)
+    local preamble = editor.edit(self.custom_content.preamble, "% preamble")
+    preamble = editor.strip_titleline(preamble, "preamble")
+    --[[ TODO: parse new preamble
+    for line in pl.stringx.lines(preamble) do
+
+    end
+    --]]
+    self:add_custom_preamble(preamble)
 end
 --}}}
---{{{ edit file
-function meta.edit_file(self, filename)
-    local filename, msg = self:get_filename(filename)
-    if not filename then print(msg) return end
-
-    -- before editing, we need to copy the file in order to make a diff after the edit
-    self:create_temporary_copy(filename)
-
-    local command = string.format("%s %s", self.editor, filename)
-    os.execute(command)
-
-    local diff = self:get_diff(filename)
-    local newlines = self:extract_commands_from_diff(diff)
-    local packagelist = self:parse_latex_commands(newlines)
-    self:compare_and_insert_missing_packages(packagelist)
-
-    self:delete_temporary_copy()
-end
---}}}
---{{{ add package
-function meta.add_package(self, package, options)
-    table.insert(self.packages, { name = package, options = options })
+--{{{ edit before/after
+function meta.edit_before_after(self, mode)
+    local content, packagelist = editor.edit(self.custom_content[mode], string.format("%% content %s text body", mode), true)
+    content = editor.strip_titleline(content, string.format("content %s text body", mode))
+    self.custom_content[mode] = content
+    if packagelist then
+        self:compare_and_insert_missing_packages(packagelist)
+    end
 end
 --}}}
 --}}}
 --{{{ Document Generation Functions
 function meta.compile(self, mode)
+    -- get snapshot of current directory
+    local files = pl.dir.getfiles(".")
+    local dirs = pl.dir.getdirectories(".")
+    files:extend(dirs)
+    local content = codegenerator.create_document(self.class, self.engine.exe, self.packages, self.document, self.structure:get_full_content(), self.custom_content)
     if mode == "document" or not mode then
-        local command = string.format("%s %s %s", self.engine.exe, self.engine.args, self.file_list.main_file)
+        local filename = string.format("%s.tex", self.project_name)
+        pl.file.write(filename, content)
+        local command = string.format("%s %s %s", self.engine.exe, self.engine.args, filename)
         if not self.settings.raw_output then
             local status, code, stdout, stderr = pl.utils.executeex(command)
             latex.parse_output(stdout)
@@ -511,6 +411,10 @@ function meta.compile(self, mode)
     elseif mode == "bibtex" then
 
     end
+end
+--}}}
+--{{{ Document settings (title, author, ...)
+function meta.set_title(self, title)
 end
 --}}}
 --{{{ Access Functions
@@ -529,97 +433,6 @@ function meta.setting(self, options)
     if type(options) ~= "table" then
         print("project: setting options is not a table")
     end
-end
---}}}
---}}}
---{{{ Content Generation Functions
---{{{ get main content
-function meta.get_main_content(self, options)
-    local classline = self:get_classline()
-    return string.format([[
-%s
-
-\usepackage{%s/%s}
-
-\begin{document}
-\input{%s/project_master}
-\end{document}
-]],
-classline,
-self.directories.file_dir,
-self.file_list.preamble_file,
-self.directories.file_dir
-)
-end
---}}}
---{{{ get class line
-function meta.get_classline(self)
-    if self.class.options and (#self.class.options ~= 0) then
-        return string.format("\\documentclass[%s]{%s}", table.concat(self.class.options, ", "), self.class[1])
-    else
-        return string.format("\\documentclass{%s}", self.class[1])
-    end
-end
---}}}
---{{{ get_master_content
-function meta.get_master_content(self)
-    local t = {}
-    for i = 1, #self.file_list do
-        t[i] = string.format("\\input{%s/%s}", self.directories.file_dir, self.file_list[i])
-    end
-    return table.concat(t, "\n")
-end
---}}}
---{{{ get_preamble_content
-function meta.get_preamble_content(self)
-    if self.engine.exe == "lualatex" then
-        local content = {
-            "\\usepackage{fontspec}",
-            "\\setmainfont{Linux Libertine O}",
-            "\\usepackage{polyglossia}",
-            "\\setdefaultlanguage{german}",
-        }
-        for _, package in ipairs(self.packages) do
-            local packagename = package.name
-            local options = package.options
-            local packagestr
-            if options then
-                packagestr = string.format("\\usepackage[%s]{%s}", table.concat(options, ", "), packagename)
-            else
-                packagestr = string.format("\\usepackage{%s}", packagename)
-            end
-            table.insert(content, packagestr)
-        end
-        return table.concat(content, "\n")
-    elseif self.engine.exe == "pdflatex" then
-        local content = {
-            "\\usepackage[utf8]{inputenc}",
-            "\\usepackage[ngerman]{babel}",
-        }
-        for _, package in ipairs(self.packages) do
-            local packagename = package.name
-            local options = package.options
-            local packagestr
-            if options then
-                packagestr = string.format("\\usepackage[%s]{%s}", table.concat(options, ", "), packagename)
-            else
-                packagestr = string.format("\\usepackage{%s}", packagename)
-            end
-            table.insert(content, packagestr)
-        end
-        return table.concat(content, "\n")
-    else
-        util.printf("sorry, engine '%s' is not supported (yet?)", self.engine.exe)
-        return "% unknown LaTeX engine"
-    end
-end
---}}}
---}}}
---{{{ Content Write Functions
---{{{ write master file
-function meta.write_master_file(self)
-    local master_content = self:get_master_content()
-    util.write_tex_file("project_master", master_content, self.directories.file_dir)
 end
 --}}}
 --}}}
@@ -649,33 +462,32 @@ end
 --}}}
 --{{{ purge
 function meta.purge(self) -- use with care
-    -- this function removes all files created by the project
-    -- this includes both files created by this tool and files created by LaTeX
-    for root, dirs, files in pl.dir.walk(".") do
-        for file in iterate(files) do
-            if not (util.is_hidden(file) and self.settings.ignore_hidden) then
-                -- check if file is 'allowed':
-                -- - it can be part of the project
-                -- - it can be an auxiliary which should not be (re-)moved
-                if not self:is_allowed_file(pl.path.basename(file)) then
-                    if self.settings.debug then
-                        util.printf("%s is not allowed and will be removed", file)
-                    end
-                    --pl.file.delete(file)
-                else
-                    if self.settings.debug then
-                        util.printf("%s is allowed", file)
-                    end
-                end
-            end
+    local delete = pl.list()
+    local files = pl.dir.getallfiles(".")
+    for file in files:iterate() do
+        if not self.aux_files:contains(file) then
+            delete:append(file)
+        end
+    end
+    print("these files will be deleted:")
+    for file in delete:iterate() do
+        print(file)
+    end
+    local answer = util.confirm_decline("do you want to proceed?")
+    if answer then
+        for file in delete:iterate() do
+            os.remove(file)
         end
     end
 end
 --}}}
 --{{{ is allowed file
 function meta.is_allowed_file(self, filename)
+    --[[
     return self:is_managed_file(filename) 
         or self:is_auxiliary_file(filename)
+    --]]
+    return self:is_auxiliary_file(filename)
 end
 --}}}
 --{{{ is managed file
@@ -692,12 +504,10 @@ end
 --}}}
 --}}}
 --{{{ Viewing Functions
---{{{ view
 function meta.view(self)
-    local command = string.format("%s %s", self.viewer, self.file_list.main_file .. ".pdf")
+    local command = string.format("%s %s.pdf", self.viewer, self.project_name)
     os.execute(command)
 end
---}}}
 --}}}
 --{{{ Minimal session functions
 -- A 'minimal' session gives to user the possibility to try out some commands while speeding up compilation time
@@ -715,6 +525,15 @@ function meta.list_structure(self)
 end
 function meta.define_structure(self)
     self.structure:define()
+end
+function meta.edit_structure_element(self, pattern)
+    local packagelist = self.structure:edit(pattern)
+    if packagelist then
+        self:compare_and_insert_missing_packages(packagelist)
+    end
+end
+function meta.show_structure_content(self)
+    io.write(self.structure:get_full_content())
 end
 --}}}
 

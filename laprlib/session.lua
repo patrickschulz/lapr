@@ -5,7 +5,9 @@ This module handles the shell-like interface used by the user.
 --]]
 --{{{ Module loading
 local util = require "laprlib.util"
---local rl = require "readline"
+local rl = require "readline"
+local functiontablelib = require "laprlib.functiontable"
+local actionlib = require "laprlib.action"
 
 local pl = {}
 pl.pretty = require "pl.pretty"
@@ -50,14 +52,7 @@ function M.create(...)
         open = true, -- flag to quit the session
         name = "lapr",
 
-        functiontable = { 
-            functions = { ["__empty__"] = function() end },
-            help_messages = {},
-            use_data = {},
-            save_data = {},
-            collect_arguments = {},
-            options_map = {}
-        },
+        functiontable = functiontablelib.create(),
         aliases = { },
         data = { },
         hooks = { },
@@ -78,26 +73,18 @@ function M.create(...)
     -- check and install options
     for _, option in ipairs(options) do
         if option == M.default_action_handlers then
-            self.functiontable.functions["help"] = meta.help
-            self.functiontable.help_messages["help"] = "display a help message"
-            self.functiontable.use_data["help"] = "help"
+            self.functiontable:add_action("help", actionlib.create(meta.help, "display a help message", { use = "help" }))
+            self.functiontable:add_action("quit", actionlib.create(function(self) self.open = false end, "quit the session", { use = "quit" }))
+            self.functiontable:add_action("alias", actionlib.create(meta.alias, "set or display alias", { use = "alias" }))
             self.data["help"] = self
-
-            self.functiontable.functions["quit"] = function(self) self.open = false end
-            self.functiontable.help_messages["quit"] = "quit the session"
-            self.functiontable.use_data["quit"] = "quit"
             self.data["quit"] = self
-
-            self.functiontable.functions["alias"] = meta.alias
-            self.functiontable.help_messages["alias"] = "list all aliases"
-            self.functiontable.use_data["alias"] = "alias"
             self.data["alias"] = self
         end
     end
 
-    self.functiontable.functions["+set"] = meta.set
-    self.functiontable.use_data["+set"] = "+set"
-    self.data["+set"] = self
+    --self.functiontable.functions["+set"] = meta.set
+    --self.functiontable.use_data["+set"] = "+set"
+    --self.data["+set"] = self
 
     setmetatable(self, meta)
 
@@ -155,7 +142,7 @@ function meta.help(self, ...)
     if ... == "-internal" then
         -- build table with all command names and sort them
         local commandnames = {}
-        for command in pairs(self.functiontable.functions) do
+        for command in self.functiontable:actions() do
             if self:is_internal_command(command) then
                 table.insert(commandnames, command)
             end
@@ -184,7 +171,7 @@ function meta.help(self, ...)
     else -- no command specified, print list of commands
         -- build table with all command names and sort them
         local commandnames = {}
-        for command in pairs(self.functiontable.functions) do
+        for command in self.functiontable:actions() do
             if not (self:is_internal_command(command) or self:is_hidden_command(command)) then
                 table.insert(commandnames, command)
             end
@@ -228,7 +215,7 @@ end
 --{{{ Getter for functiontable
 --{{{ get function
 function meta.get_function(self, command, args)
-    local func = self.functiontable.functions[command]
+    local func = self.functiontable:get_action(command):get_function()
     if not func then
         if self.aliases[command] then
             return self:get_function(self.aliases[command], args)
@@ -260,26 +247,30 @@ end
 --}}}
 --{{{ get use_data
 function meta.get_use_data(self, command)
-    return self.functiontable.use_data[command]
+    return self.functiontable:get_use_data(command)
 end
 --}}}
 --{{{ get save_data
 function meta.get_save_data(self, command)
-    return self.functiontable.save_data[command]
+    return self.functiontable:get_action(command):get_save_data()
 end
 --}}}
 --{{{ get collect_arguments
 function meta.get_collect_arguments(self, command)
-    return self.functiontable.collect_arguments[command]
+    return self.functiontable:get_action(command):get_collect()
 end
 --}}}
 --{{{ get help message
 function meta.get_help_message(self, command)
-    local help_message = self.functiontable.help_messages[command]
+    local help_message = self.functiontable:get_action(command):get_help_message()
     if help_message then 
-        return help_message
+        if type(help_message) == "table" then
+            return table.concat(help_message, "\n")
+        else
+            return help_message
+        end
     else
-        if self.functiontable.functions[command] then
+        if self.functiontable:get_action(command):get_function() then
             return "no help message"
         else
             return string.format("command '%s' unknown", command)
@@ -301,25 +292,16 @@ end
 -- the action function is later called with the session object as first parameter
 -- and all arguments of the current commandline stored in a sequence as second parameter
 -- the override switch is used to override a existing handler. If override is false, this is not possible
-function meta.add_action_handler(self, command, action, help_message, override, save_data, use_data, collect_arguments, options_map)
-    local new_handler
-    -- arguments supplied sequentially
-    if type(command) ~= "table" then
-        new_handler = {
-            command           = command,
-            action            = action,
-            help_message      = help_message,
-            override          = override,
-            save_data         = save_data,
-            use_data          = use_data,
-            collect_arguments = collect_arguments,
-            options_map       = options_map
-        }
-    -- arguments packed in table
-    else
-        new_handler = command
-    end
 
+-- command
+-- action
+-- help_message
+-- override
+-- save_data
+-- use_data
+-- collect_argumentsments
+-- options_map
+function meta.add_action_handler(self, new_handler)
     -- check if important keys are valid
     if not new_handler.command then
         return self:raise_or_return_error("handler has no valid command")
@@ -334,14 +316,11 @@ function meta.add_action_handler(self, command, action, help_message, override, 
     --]]
 
     -- install handler (if possible)
-    if self.functiontable[new_handler.command] and not new_handler.override then
+    if self.functiontable:get_action(new_handler.command) and not new_handler.override then
         return self:raise_or_return_error(string.format("command '%s' already exists. Use the override flag to ignore this and install the new handler", command))
     else
-        self.functiontable.functions[new_handler.command] = new_handler.action
-        self.functiontable.help_messages[new_handler.command] = new_handler.help_message
-        self.functiontable.save_data[new_handler.command] = new_handler.save_data
-        self.functiontable.use_data[new_handler.command] = new_handler.use_data
-        self.functiontable.collect_arguments[new_handler.command] = new_handler.collect_arguments
+        self.functiontable:add_action(new_handler.command, 
+            actionlib.create(new_handler.action, new_handler.help_message, { use = new_handler.use_data, save = new_handler.save_data, collect = new_handler.collect_arguments }))
         return true
     end
 end
@@ -404,7 +383,7 @@ end
 --}}}
 --{{{ add options map to handler
 function meta.add_options_map_to_handler(self, command, options_map)
-    self.functiontable[command].options_map = options_map
+    self.functiontable:get_action(command):set_options(options_map)
 end
 --}}}
 --}}}
@@ -599,12 +578,12 @@ end
 function meta.combine_arguments(self, command, args)
     -- gather all arguments in one table which can be unpacked later
     local args_combined = {}
-    if self.functiontable.use_data[command] then
-        table.insert(args_combined, self.data[self.functiontable.use_data[command]])
+    if self.functiontable:get_use_data(command) then
+        table.insert(args_combined, self.data[self.functiontable:get_use_data(command)])
     end
     -- the arguments of the function can be given sequentially or packed in a table
     -- use 'collect_arguments' to change behaviour (collect -> packed)
-    if self.functiontable.collect_arguments[command] then
+    if self.functiontable:get_action(command):get_collect() then
         table.insert(args_combined, args)
     else
         for i = 1, #args do
@@ -649,7 +628,7 @@ end
 --}}}
 --{{{ is supercommand
 function meta.is_supercommand(self, command)
-    return pl.utils.is_type(self.functiontable.functions[command], "table")
+    return pl.utils.is_type(self.functiontable:get_action(command):get_function(), "table")
 end
 --}}}
 --}}}
@@ -657,9 +636,11 @@ end
 --{{{ Read next command
 function meta.next_command(self)
     -- read next command line, save and increment line counter
-    --local line = rl.readline(self:prompt())
+    local line = rl.readline(self:prompt())
+    --[[ use this version, if you don't have (or don't want to use) readline
     io.write(self:prompt())
     local line = io.read()
+    --]]
     if not line then
         return nil
     end
@@ -736,7 +717,7 @@ end
 --}}}
 --{{{ get options map
 function meta.get_options_map(self, command)
-    return self.functiontable.options_map[command]
+    return self.functiontable:get_action(command):get_options()
 end
 --}}}
 --{{{ is option
