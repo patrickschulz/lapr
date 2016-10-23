@@ -10,18 +10,6 @@ return {
         --debug = false,
     },
 
-    -- file names
-    --[[
-    file_list = {
-        main_file = "main",
-        project_file = ".project",
-        preamble_file = "preamble"
-    },
-    --]]
-
-    -- auxiliary files. This list is used to protect files not belonging to the project while cleaning up
-    --aux_files = { },
-
     -- directories in which files will be stored
     --[[
     directories = { 

@@ -27,7 +27,7 @@ meta.__index = meta
 
 function M.create()
     local self = { 
-        actiontable = {}
+        actiontable = setmetatable({}, fmeta)
     }
     setmetatable(self, meta)
     return self
