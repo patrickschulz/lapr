@@ -49,7 +49,9 @@ local known_classes = pl.tablex.makeset{
     -- misc
     "IEEEtran",
     "minimal",
-    "standalone"
+    "standalone",
+    -- presentations
+    "beamer"
 }
 
 --{{{ Object Creation Functions
@@ -415,6 +417,7 @@ end
 --}}}
 --{{{ Document settings (title, author, ...)
 function meta.set_title(self, title)
+    self.document.title = title
 end
 --}}}
 --{{{ Access Functions

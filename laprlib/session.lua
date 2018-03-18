@@ -5,7 +5,7 @@ This module handles the shell-like interface used by the user.
 --]]
 --{{{ Module loading
 local util = require "laprlib.util"
-local rl = require "readline"
+--local rl = require "readline"
 local functiontablelib = require "laprlib.functiontable"
 local actionlib = require "laprlib.action"
 
@@ -636,8 +636,8 @@ end
 --{{{ Read next command
 function meta.next_command(self)
     -- read next command line, save and increment line counter
-    local line = rl.readline(self:prompt())
-    --[[ use this version, if you don't have (or don't want to use) readline
+    --local line = rl.readline(self:prompt())
+    ---[[ use this version, if you don't have (or don't want to use) readline
     io.write(self:prompt())
     local line = io.read()
     --]]

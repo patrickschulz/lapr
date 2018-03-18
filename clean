@@ -1,0 +1,1 @@
+rm -rf main.tex .minimal images files main.aux main.log main.pdf .project .build .difftempfile

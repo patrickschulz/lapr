@@ -1,6 +1,7 @@
 #! /usr/bin/env lua
 local lapp = require "pl.lapp"
 
+
 local projectlib = require "laprlib.project"
 local sessionlib = require "laprlib.session"
 local util = require "laprlib.util"
@@ -9,6 +10,7 @@ local config = require "laprlib.config"
 config.create_config_directories()
 
 local session = sessionlib.create(sessionlib.default_action_handlers)
+--[=[
 
 local args = lapp[[
 lapr - a commandline IDE for LaTeX documents. 
@@ -44,6 +46,14 @@ session:add_action_handler{
     save_data = "projectlib"
 }
 session:add_action_handler{
+    command = "set",
+    action = {
+        title = projectlib.set_title
+    },
+    help_message = "Set document properties",
+    use_data = "projectlib"
+}
+session:add_action_handler{
     command = "structure",
     action = {
         define = projectlib.define_structure,
@@ -55,6 +65,27 @@ session:add_action_handler{
 define: define the structure interactively
 list:   list the current document structure
 edit:   edit a structure element. The element is found by supplying a pattern]],
+    use_data = "projectlib"
+}
+session:add_action_handler{
+    command = "show",
+    action = {
+        preamble = projectlib.show_preamble,
+        document = projectlib.show_full_document,
+    },
+    help_message = "Show preamble, document",
+    use_data = "projectlib"
+}
+session:add_action_handler{
+    command = "compile",
+    action = projectlib.compile,
+    help_message = "Compile the document",
+    use_data = "projectlib"
+}
+session:add_action_handler{
+    command = "view",
+    action = projectlib.view,
+    help_message = "View the compiled document",
     use_data = "projectlib"
 }
 
@@ -72,5 +103,7 @@ end
 if not args.script or args.persist then
     session:loop()
 end
+
+--]=]
 
 -- vim: nowrap ft=lua
