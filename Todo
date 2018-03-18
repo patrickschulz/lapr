@@ -1,0 +1,1 @@
+- Add a custom handler to the session.lua library which is called on using uninitialized data (the "perhaps you need to run some sort of initialization function" warning)
